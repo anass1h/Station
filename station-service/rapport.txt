@@ -1,0 +1,556 @@
+================================================================================
+                    RAPPORT D'AUDIT COMPLET - STATION-SERVICE
+                              Date: 24/01/2026
+================================================================================
+
+================================================================================
+1. ARCHITECTURE
+================================================================================
+
+1.1 MODULES IMPLEMENTES (14 modules)
+------------------------------------
+  - AuthModule          : Authentification (JWT, login email/badge)
+  - StationModule       : Gestion des stations-service
+  - FuelTypeModule      : Types de carburant
+  - TankModule          : Cuves de stockage
+  - DispenserModule     : Distributeurs (DC)
+  - NozzleModule        : Pistolets de distribution
+  - ShiftModule         : Vacations/postes de travail
+  - SaleModule          : Ventes de carburant
+  - CashRegisterModule  : Cloture de caisse
+  - SupplierModule      : Fournisseurs
+  - DeliveryModule      : Livraisons
+  - ClientModule        : Clients B2B/B2C
+  - InvoiceModule       : Facturation + PDF
+  - HealthModule        : Health check
+  - CommonModule        : Validators et Calculators partages
+  - PrismaModule        : Acces base de donnees
+
+1.2 ARBORESCENCE src/
+---------------------
+src/
+├── app.module.ts
+├── main.ts
+├── auth/
+│   ├── auth.controller.ts
+│   ├── auth.module.ts
+│   ├── auth.service.ts
+│   ├── decorators/
+│   │   ├── current-user.decorator.ts
+│   │   ├── index.ts
+│   │   └── roles.decorator.ts
+│   ├── dto/
+│   │   ├── auth-response.dto.ts
+│   │   ├── index.ts
+│   │   ├── login-badge.dto.ts
+│   │   ├── login.dto.ts
+│   │   └── register.dto.ts
+│   ├── guards/
+│   │   ├── index.ts
+│   │   ├── jwt-auth.guard.ts
+│   │   └── roles.guard.ts
+│   ├── strategies/
+│   │   ├── index.ts
+│   │   └── jwt.strategy.ts
+│   └── index.ts
+├── cash-register/
+│   ├── cash-register.controller.ts
+│   ├── cash-register.module.ts
+│   ├── cash-register.service.ts
+│   ├── dto/
+│   │   ├── close-cash-register.dto.ts
+│   │   ├── index.ts
+│   │   └── payment-detail.dto.ts
+│   └── index.ts
+├── client/
+│   ├── client.controller.ts
+│   ├── client.module.ts
+│   ├── client.service.ts
+│   ├── dto/
+│   │   ├── create-client.dto.ts
+│   │   ├── index.ts
+│   │   └── update-client.dto.ts
+│   └── index.ts
+├── common/
+│   ├── common.module.ts
+│   ├── index.ts
+│   ├── calculators/
+│   │   ├── index.ts
+│   │   ├── margin.calculator.ts
+│   │   ├── price.calculator.ts
+│   │   ├── shift.calculator.ts
+│   │   └── stock.calculator.ts
+│   └── validators/
+│       ├── index.ts
+│       ├── sale.validator.ts
+│       ├── shift.validator.ts
+│       ├── stock.validator.ts
+│       └── types.ts
+├── delivery/
+│   ├── delivery.controller.ts
+│   ├── delivery.module.ts
+│   ├── delivery.service.ts
+│   ├── dto/
+│   │   ├── create-delivery.dto.ts
+│   │   └── index.ts
+│   └── index.ts
+├── dispenser/
+│   ├── dispenser.controller.ts
+│   ├── dispenser.module.ts
+│   ├── dispenser.service.ts
+│   ├── dto/
+│   │   ├── create-dispenser.dto.ts
+│   │   ├── index.ts
+│   │   └── update-dispenser.dto.ts
+│   └── index.ts
+├── fuel-type/
+│   ├── fuel-type.controller.ts
+│   ├── fuel-type.module.ts
+│   ├── fuel-type.service.ts
+│   ├── dto/
+│   │   ├── create-fuel-type.dto.ts
+│   │   ├── index.ts
+│   │   └── update-fuel-type.dto.ts
+│   └── index.ts
+├── health/
+│   ├── health.controller.ts
+│   ├── health.module.ts
+│   └── index.ts
+├── invoice/
+│   ├── invoice.controller.ts
+│   ├── invoice.module.ts
+│   ├── invoice.service.ts
+│   ├── dto/
+│   │   ├── add-payment.dto.ts
+│   │   ├── cancel-invoice.dto.ts
+│   │   ├── create-invoice.dto.ts
+│   │   ├── index.ts
+│   │   └── invoice-line.dto.ts
+│   ├── pdf/
+│   │   ├── index.ts
+│   │   └── invoice-pdf.service.ts
+│   └── index.ts
+├── nozzle/
+│   ├── nozzle.controller.ts
+│   ├── nozzle.module.ts
+│   ├── nozzle.service.ts
+│   ├── dto/
+│   │   ├── create-nozzle.dto.ts
+│   │   ├── index.ts
+│   │   └── update-nozzle.dto.ts
+│   └── index.ts
+├── prisma/
+│   ├── prisma.module.ts
+│   ├── prisma.service.ts
+│   └── index.ts
+├── sale/
+│   ├── sale.controller.ts
+│   ├── sale.module.ts
+│   ├── sale.service.ts
+│   ├── dto/
+│   │   ├── create-sale.dto.ts
+│   │   ├── index.ts
+│   │   └── sale-payment.dto.ts
+│   └── index.ts
+├── shift/
+│   ├── shift.controller.ts
+│   ├── shift.module.ts
+│   ├── shift.service.ts
+│   ├── dto/
+│   │   ├── end-shift.dto.ts
+│   │   ├── index.ts
+│   │   ├── start-shift.dto.ts
+│   │   └── validate-shift.dto.ts
+│   └── index.ts
+├── station/
+│   ├── station.controller.ts
+│   ├── station.module.ts
+│   ├── station.service.ts
+│   ├── dto/
+│   │   ├── create-station.dto.ts
+│   │   ├── index.ts
+│   │   └── update-station.dto.ts
+│   └── index.ts
+├── supplier/
+│   ├── supplier.controller.ts
+│   ├── supplier.module.ts
+│   ├── supplier.service.ts
+│   ├── dto/
+│   │   ├── create-supplier.dto.ts
+│   │   ├── index.ts
+│   │   └── update-supplier.dto.ts
+│   └── index.ts
+└── tank/
+    ├── tank.controller.ts
+    ├── tank.module.ts
+    ├── tank.service.ts
+    ├── dto/
+    │   ├── create-tank.dto.ts
+    │   ├── index.ts
+    │   └── update-tank.dto.ts
+    └── index.ts
+
+TOTAL: 125 fichiers TypeScript
+
+1.3 DEPENDANCES (package.json)
+------------------------------
+
+PRODUCTION:
+  @nestjs/common         ^11.0.1    Framework NestJS
+  @nestjs/config         ^4.0.2     Configuration (env)
+  @nestjs/core           ^11.0.1    Core NestJS
+  @nestjs/jwt            ^11.0.2    Gestion JWT
+  @nestjs/passport       ^11.0.5    Integration Passport
+  @nestjs/platform-express ^11.0.1  Serveur Express
+  @nestjs/swagger        ^11.2.5    Documentation API
+  @prisma/client         ^5.22.0    ORM Prisma
+  bcrypt                 ^6.0.0     Hashage mots de passe
+  class-transformer      ^0.5.1     Transformation DTOs
+  class-validator        ^0.14.3    Validation DTOs
+  passport               ^0.7.0     Authentification
+  passport-jwt           ^4.0.1     Strategie JWT
+  pdfkit                 ^0.17.2    Generation PDF
+  reflect-metadata       ^0.2.2     Metadonnees decorateurs
+  rxjs                   ^7.8.1     Programmation reactive
+
+DEVELOPPEMENT:
+  @nestjs/cli            ^11.0.0    CLI NestJS
+  @nestjs/testing        ^11.0.1    Tests
+  @types/bcrypt          ^6.0.0     Types bcrypt
+  @types/express         ^5.0.0     Types Express
+  @types/jest            ^30.0.0    Types Jest
+  @types/pdfkit          ^0.17.4    Types PDFKit
+  @types/passport-jwt    ^4.0.1     Types Passport JWT
+  eslint                 ^9.18.0    Linter
+  jest                   ^30.0.0    Tests unitaires
+  prettier               ^3.4.2     Formatage
+  prisma                 ^5.22.0    CLI Prisma
+  typescript             ^5.7.3     Compilateur TS
+
+
+================================================================================
+2. BASE DE DONNEES
+================================================================================
+
+2.1 ENUMS (11)
+--------------
+  UserRole          : POMPISTE, GESTIONNAIRE, SUPER_ADMIN
+  ShiftStatus       : OPEN, CLOSED, VALIDATED
+  MovementType      : DELIVERY, SALE, ADJUSTMENT, CALIBRATION, LOSS
+  ClientType        : B2B, B2C_REGISTERED
+  InvoiceType       : INTERNAL, B2B, B2C_TICKET
+  InvoiceStatus     : DRAFT, ISSUED, PAID, PARTIALLY_PAID, CANCELLED
+  MaintenanceType   : PREVENTIVE, CORRECTIVE, CALIBRATION, INSPECTION
+  MaintenanceStatus : SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+  AlertType         : LOW_STOCK, SHIFT_OPEN_TOO_LONG, CASH_VARIANCE,
+                      INDEX_VARIANCE, MAINTENANCE_DUE, CREDIT_LIMIT
+  AlertPriority     : LOW, MEDIUM, HIGH, CRITICAL
+  AlertStatus       : ACTIVE, ACKNOWLEDGED, RESOLVED, IGNORED
+
+2.2 TABLES (21)
+---------------
+
+  +--------------------+------------------------------------------+
+  | Table              | Description                              |
+  +--------------------+------------------------------------------+
+  | users              | Utilisateurs (pompistes, gestionnaires)  |
+  | stations           | Stations-service                         |
+  | fuel_types         | Types de carburant                       |
+  | tanks              | Cuves de stockage                        |
+  | dispensers         | Distributeurs de carburant               |
+  | nozzles            | Pistolets de distribution                |
+  | shifts             | Vacations/postes de travail              |
+  | sales              | Ventes de carburant                      |
+  | payment_methods    | Moyens de paiement                       |
+  | sale_payments      | Paiements par vente                      |
+  | cash_registers     | Clotures de caisse                       |
+  | payment_details    | Details caisse par moyen                 |
+  | suppliers          | Fournisseurs                             |
+  | deliveries         | Livraisons                               |
+  | stock_movements    | Mouvements de stock                      |
+  | prices             | Prix carburant (historise)               |
+  | clients            | Clients B2B/B2C                          |
+  | invoices           | Factures                                 |
+  | invoice_lines      | Lignes de facture                        |
+  | invoice_payments   | Reglements de factures                   |
+  | credit_notes       | Avoirs                                   |
+  | maintenance_logs   | Interventions techniques                 |
+  | alerts             | Alertes systeme                          |
+  | audit_logs         | Tracabilite                              |
+  +--------------------+------------------------------------------+
+
+2.3 RELATIONS PRINCIPALES
+-------------------------
+
+  Station (1) ──────< (N) User
+  Station (1) ──────< (N) Tank
+  Station (1) ──────< (N) Dispenser
+  Station (1) ──────< (N) Price
+  Station (1) ──────< (N) Client
+  Station (1) ──────< (N) Invoice
+
+  FuelType (1) ─────< (N) Tank
+  FuelType (1) ─────< (N) Nozzle
+  FuelType (1) ─────< (N) Sale
+  FuelType (1) ─────< (N) Price
+
+  Tank (1) ─────────< (N) Nozzle
+  Tank (1) ─────────< (N) Delivery
+  Tank (1) ─────────< (N) StockMovement
+
+  Dispenser (1) ────< (N) Nozzle
+
+  Nozzle (1) ───────< (N) Shift
+
+  Shift (1) ────────< (N) Sale
+  Shift (1) ────────< (1) CashRegister
+
+  Sale (1) ─────────< (N) SalePayment
+
+  Client (1) ───────< (N) Sale
+  Client (1) ───────< (N) Invoice
+
+  Invoice (1) ──────< (N) InvoiceLine
+  Invoice (1) ──────< (N) InvoicePayment
+  Invoice (1) ──────< (N) CreditNote
+
+
+================================================================================
+3. ENDPOINTS API (71 endpoints)
+================================================================================
+
+3.1 AUTH (4 endpoints)
+----------------------
+  POST   /auth/login           Public      Connexion email/password
+  POST   /auth/login-badge     Public      Connexion badge/PIN
+  POST   /auth/register        Public      Inscription
+  GET    /auth/me              JWT         Profil utilisateur
+
+3.2 STATIONS (5 endpoints)
+--------------------------
+  POST   /stations             G, SA       Creer station
+  GET    /stations             JWT         Lister stations
+  GET    /stations/:id         JWT         Obtenir station
+  PATCH  /stations/:id         G, SA       Modifier station
+  DELETE /stations/:id         SA          Desactiver station
+
+3.3 FUEL-TYPES (5 endpoints)
+----------------------------
+  POST   /fuel-types           G, SA       Creer type carburant
+  GET    /fuel-types           JWT         Lister types
+  GET    /fuel-types/:id       JWT         Obtenir type
+  PATCH  /fuel-types/:id       G, SA       Modifier type
+  DELETE /fuel-types/:id       SA          Desactiver type
+
+3.4 TANKS (5 endpoints)
+-----------------------
+  POST   /tanks                G, SA       Creer cuve
+  GET    /tanks                JWT         Lister cuves
+  GET    /tanks/:id            JWT         Obtenir cuve
+  PATCH  /tanks/:id            G, SA       Modifier cuve
+  DELETE /tanks/:id            SA          Desactiver cuve
+
+3.5 DISPENSERS (5 endpoints)
+----------------------------
+  POST   /dispensers           G, SA       Creer distributeur
+  GET    /dispensers           JWT         Lister distributeurs
+  GET    /dispensers/:id       JWT         Obtenir distributeur
+  PATCH  /dispensers/:id       G, SA       Modifier distributeur
+  DELETE /dispensers/:id       SA          Desactiver distributeur
+
+3.6 NOZZLES (5 endpoints)
+-------------------------
+  POST   /nozzles              G, SA       Creer pistolet
+  GET    /nozzles              JWT         Lister pistolets
+  GET    /nozzles/:id          JWT         Obtenir pistolet
+  PATCH  /nozzles/:id          G, SA       Modifier pistolet
+  DELETE /nozzles/:id          SA          Desactiver pistolet
+
+3.7 SHIFTS (8 endpoints)
+------------------------
+  POST   /shifts/start                   P, G, SA    Demarrer shift
+  POST   /shifts/:id/end                 P, G, SA    Cloturer shift
+  POST   /shifts/:id/validate            G, SA       Valider shift
+  GET    /shifts                         JWT         Lister shifts
+  GET    /shifts/open                    JWT         Shifts ouverts
+  GET    /shifts/by-pompiste/:id         JWT         Shifts par pompiste
+  GET    /shifts/by-nozzle/:id           JWT         Shifts par pistolet
+  GET    /shifts/:id                     JWT         Obtenir shift
+
+3.8 SALES (6 endpoints)
+-----------------------
+  POST   /sales                          P, G, SA    Enregistrer vente
+  GET    /sales/by-shift/:id             JWT         Ventes par shift
+  GET    /sales/by-shift/:id/summary     JWT         Resume ventes shift
+  GET    /sales/by-station/:id           JWT         Ventes par station
+  GET    /sales/by-client/:id            JWT         Ventes par client
+  GET    /sales/:id                      JWT         Obtenir vente
+
+3.9 CASH-REGISTERS (5 endpoints)
+--------------------------------
+  POST   /cash-registers/close           P, G, SA    Cloturer caisse
+  GET    /cash-registers                 JWT         Lister clotures
+  GET    /cash-registers/variances       G, SA       Clotures avec ecarts
+  GET    /cash-registers/shift/:id       JWT         Cloture par shift
+  GET    /cash-registers/:id             JWT         Obtenir cloture
+
+3.10 SUPPLIERS (5 endpoints)
+----------------------------
+  POST   /suppliers            G, SA       Creer fournisseur
+  GET    /suppliers            JWT         Lister fournisseurs
+  GET    /suppliers/:id        JWT         Obtenir fournisseur
+  PATCH  /suppliers/:id        G, SA       Modifier fournisseur
+  DELETE /suppliers/:id        SA          Desactiver fournisseur
+
+3.11 DELIVERIES (6 endpoints)
+-----------------------------
+  POST   /deliveries                          G, SA    Enregistrer livraison
+  GET    /deliveries/by-station/:id           JWT      Livraisons par station
+  GET    /deliveries/by-station/:id/summary   JWT      Resume livraisons
+  GET    /deliveries/by-tank/:id              JWT      Livraisons par cuve
+  GET    /deliveries/by-supplier/:id          JWT      Livraisons par fournisseur
+  GET    /deliveries/:id                      JWT      Obtenir livraison
+
+3.12 CLIENTS (6 endpoints)
+--------------------------
+  POST   /clients                             G, SA    Creer client
+  GET    /clients                             JWT      Lister clients
+  GET    /clients/over-credit-limit/:id       G, SA    Clients hors plafond
+  GET    /clients/:id                         JWT      Obtenir client
+  PATCH  /clients/:id                         G, SA    Modifier client
+  DELETE /clients/:id                         SA       Desactiver client
+
+3.13 INVOICES (10 endpoints)
+----------------------------
+  POST   /invoices                            G, SA    Creer facture
+  POST   /invoices/:id/issue                  G, SA    Emettre facture
+  POST   /invoices/:id/payment                G, SA    Ajouter paiement
+  POST   /invoices/:id/cancel                 G, SA    Annuler facture
+  GET    /invoices/by-station/:id             JWT      Factures par station
+  GET    /invoices/by-station/:id/unpaid      JWT      Factures impayees
+  GET    /invoices/by-station/:id/overdue     G, SA    Factures en retard
+  GET    /invoices/by-client/:id              JWT      Factures par client
+  GET    /invoices/:id/pdf                    G, SA    Telecharger PDF
+  GET    /invoices/:id                        JWT      Obtenir facture
+
+3.14 HEALTH (1 endpoint)
+------------------------
+  GET    /health               Public      Health check
+
+LEGENDE:
+  P  = POMPISTE
+  G  = GESTIONNAIRE
+  SA = SUPER_ADMIN
+  JWT = Authentification requise (tous roles)
+  Public = Pas d'authentification
+
+
+================================================================================
+4. SECURITE
+================================================================================
+
+4.1 AUTHENTIFICATION
+--------------------
+  - JWT (JSON Web Token) via @nestjs/jwt et passport-jwt
+  - Deux methodes de connexion:
+    1. Email + Password (GESTIONNAIRE, SUPER_ADMIN)
+    2. Badge + PIN 6 chiffres (POMPISTE, GESTIONNAIRE)
+  - Hashage bcrypt (10 rounds) pour mots de passe et PIN
+  - Token contient: userId, email/badge, role, stationId
+
+4.2 GUARDS EN PLACE
+-------------------
+  - JwtAuthGuard     : Verifie la validite du token JWT
+  - RolesGuard       : Verifie les roles autorises via @Roles()
+
+4.3 DECORATEURS
+---------------
+  - @Roles(...)      : Definit les roles autorises
+  - @CurrentUser()   : Injecte l'utilisateur courant dans le controller
+
+4.4 PROTECTION DES ENDPOINTS
+----------------------------
+  - 4 endpoints publics  : /health, /auth/login, /auth/login-badge, /auth/register
+  - 67 endpoints proteges: Requierent JWT + role adequat
+
+4.5 VALIDATION DES DONNEES
+--------------------------
+  - DTOs valides via class-validator
+  - ParseUUIDPipe pour tous les parametres ID
+  - Validation metier centralisee (CommonModule/validators)
+
+
+================================================================================
+5. CE QUI MANQUE
+================================================================================
+
+5.1 MODULES NON IMPLEMENTES
+---------------------------
+  [!] MaintenanceModule  : Tables presentes, CRUD non implemente
+  [!] AlertModule        : Tables presentes, CRUD non implemente
+  [!] AuditLogModule     : Tables presentes, service non implemente
+  [!] PriceModule        : Table presente, CRUD non implemente
+  [!] PaymentMethodModule: Table presente, CRUD non implemente
+  [!] CreditNoteModule   : Table presente, CRUD non implemente
+  [!] StockMovementModule: Table presente, gestion manuelle non implementee
+
+5.2 FONCTIONNALITES MANQUANTES
+------------------------------
+  [!] Gestion des prix (creation, historique, mise a jour)
+  [!] Gestion des moyens de paiement
+  [!] Systeme d'alertes automatiques
+  [!] Traçabilite/audit automatique des actions
+  [!] Gestion de la maintenance
+  [!] Gestion des avoirs (credit notes)
+  [!] Dashboard/statistiques
+  [!] Export de donnees (Excel, CSV)
+  [!] Gestion multi-station pour SUPER_ADMIN
+  [!] Notifications (email, push)
+  [!] Refresh token (expiration JWT)
+  [!] Rate limiting
+  [!] Compression des reponses
+  [!] Cache (Redis)
+
+5.3 TESTS
+---------
+  [!] AUCUN TEST UNITAIRE dans src/
+  [!] AUCUN TEST E2E dans test/
+  [!] Configuration Jest presente mais non utilisee
+
+5.4 DOCUMENTATION
+-----------------
+  [OK] Swagger/OpenAPI configure
+  [!] README.md non present ou incomplet
+  [!] Documentation technique manquante
+
+
+================================================================================
+6. RESUME
+================================================================================
+
+  STATUT GLOBAL: 70% COMPLET
+
+  Points forts:
+  -------------
+  + Architecture NestJS propre et modulaire
+  + Schema BDD complet et bien structure (21 tables)
+  + 71 endpoints API fonctionnels
+  + Authentification JWT robuste avec 2 methodes
+  + Role-based access control (RBAC)
+  + Validation des donnees complete
+  + Generation PDF des factures
+  + Validators et calculators centralises
+  + Swagger documentation API
+
+  Points a ameliorer:
+  -------------------
+  - Implementer les modules manquants (Maintenance, Alert, Audit)
+  - Ajouter les tests unitaires et E2E
+  - Implementer le systeme d'alertes automatiques
+  - Ajouter la gestion des prix
+  - Implementer le refresh token
+  - Ajouter la documentation technique
+
+================================================================================
+                              FIN DU RAPPORT
+================================================================================

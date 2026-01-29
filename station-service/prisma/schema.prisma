@@ -1,0 +1,772 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===========================================
+// ENUMS
+// ===========================================
+enum UserRole {
+  POMPISTE
+  GESTIONNAIRE
+  SUPER_ADMIN
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+  VALIDATED
+}
+
+enum MovementType {
+  DELIVERY
+  SALE
+  ADJUSTMENT
+  CALIBRATION
+  LOSS
+}
+
+enum ClientType {
+  B2B
+  B2C_REGISTERED
+}
+
+enum InvoiceType {
+  INTERNAL
+  B2B
+  B2C_TICKET
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  PARTIALLY_PAID
+  CANCELLED
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  CALIBRATION
+  INSPECTION
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AlertType {
+  LOW_STOCK
+  SHIFT_OPEN_TOO_LONG
+  CASH_VARIANCE
+  INDEX_VARIANCE
+  MAINTENANCE_DUE
+  CREDIT_LIMIT
+}
+
+enum AlertPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+  IGNORED
+}
+
+enum LicencePlan {
+  TRIAL
+  BASIC
+  PREMIUM
+  ENTERPRISE
+}
+
+enum LicenceStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  CANCELLED
+}
+
+// ===========================================
+// USER
+// ===========================================
+model User {
+  id           String    @id @default(uuid())
+  stationId    String?
+  email        String?   @unique // Obligatoire pour GESTIONNAIRE/SUPER_ADMIN
+  passwordHash String? // Obligatoire pour GESTIONNAIRE/SUPER_ADMIN
+  badgeCode    String?   @unique // Obligatoire pour POMPISTE, ex: "P001"
+  pinCodeHash  String? // Code à 6 chiffres hashé, obligatoire pour POMPISTE
+  firstName    String
+  lastName     String
+  phone        String?
+  role         UserRole
+  isActive     Boolean   @default(true)
+  lastLogin    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  station            Station?         @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  shifts             Shift[]
+  deliveries         Delivery[]
+  stockMovements     StockMovement[]
+  pricesCreated      Price[]
+  maintenanceLogs    MaintenanceLog[]
+  alertsAcknowledged Alert[]          @relation("AlertAcknowledgedBy")
+  alertsResolved     Alert[]          @relation("AlertResolvedBy")
+  auditLogs          AuditLog[]
+  refreshTokens      RefreshToken[]
+  debts              PompisteDebt[]   @relation("PompisteDebts")
+  debtsCreated       PompisteDebt[]   @relation("DebtsCreatedBy")
+  debtPaymentsReceived DebtPayment[]  @relation("DebtPaymentsReceived")
+
+  @@map("users")
+}
+
+// ===========================================
+// REFRESH TOKEN
+// ===========================================
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  token     String    @unique // Hash du refresh token
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ===========================================
+// STATION
+// ===========================================
+model Station {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  city      String
+  phone     String?
+  email     String?
+  ice       String?  // Identifiant Commun Entreprise
+  taxId     String?  // Identifiant Fiscal (IF)
+  rc        String?  // Registre du Commerce
+  patente   String?  // Numéro de patente
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users           User[]
+  tanks           Tank[]
+  dispensers      Dispenser[]
+  prices          Price[]
+  clients         Client[]
+  invoices        Invoice[]
+  maintenanceLogs MaintenanceLog[]
+  alerts          Alert[]
+  auditLogs       AuditLog[]
+  licence         Licence?
+  pompisteDebts   PompisteDebt[]
+
+  @@map("stations")
+}
+
+// ===========================================
+// FUEL TYPE
+// ===========================================
+model FuelType {
+  id        String   @id @default(uuid())
+  code      String   @unique // ex: "GASOIL", "SP95"
+  name      String // ex: "Gasoil 50ppm"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tanks        Tank[]
+  nozzles      Nozzle[]
+  sales        Sale[]
+  prices       Price[]
+  invoiceLines InvoiceLine[]
+
+  @@map("fuel_types")
+}
+
+// ===========================================
+// TANK (Cuve)
+// ===========================================
+model Tank {
+  id           String   @id @default(uuid())
+  stationId    String
+  fuelTypeId   String
+  capacity     Decimal  @db.Decimal(12, 2) // en litres
+  currentLevel Decimal  @db.Decimal(12, 2) // en litres
+  lowThreshold Decimal  @db.Decimal(12, 2) // seuil alerte
+  reference    String // ex: "CUVE-001"
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  station         Station          @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  fuelType        FuelType         @relation(fields: [fuelTypeId], references: [id])
+  nozzles         Nozzle[]
+  deliveries      Delivery[]
+  stockMovements  StockMovement[]
+  maintenanceLogs MaintenanceLog[]
+
+  @@unique([stationId, reference])
+  @@map("tanks")
+}
+
+// ===========================================
+// DISPENSER (Distributeur de carburant - DC)
+// ===========================================
+model Dispenser {
+  id        String   @id @default(uuid())
+  stationId String
+  reference String // ex: "DC-01"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  station         Station          @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  nozzles         Nozzle[]
+  maintenanceLogs MaintenanceLog[]
+
+  @@unique([stationId, reference])
+  @@map("dispensers")
+}
+
+// ===========================================
+// NOZZLE (Pistolet de distribution)
+// ===========================================
+model Nozzle {
+  id           String   @id @default(uuid())
+  dispenserId  String
+  tankId       String
+  fuelTypeId   String
+  reference    String // ex: "DC01-P1"
+  currentIndex Decimal  @db.Decimal(12, 2) // index compteur en litres
+  position     Int // position sur le distributeur: 1, 2, 3...
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  dispenser       Dispenser        @relation(fields: [dispenserId], references: [id], onDelete: Cascade)
+  tank            Tank             @relation(fields: [tankId], references: [id])
+  fuelType        FuelType         @relation(fields: [fuelTypeId], references: [id])
+  shifts          Shift[]
+  maintenanceLogs MaintenanceLog[]
+
+  @@unique([dispenserId, reference])
+  @@map("nozzles")
+}
+
+// ===========================================
+// SHIFT (Vacation/Poste de travail)
+// ===========================================
+model Shift {
+  id           String      @id @default(uuid())
+  nozzleId     String
+  pompisteId   String
+  indexStart   Decimal     @db.Decimal(12, 2) // index compteur au début
+  indexEnd     Decimal?    @db.Decimal(12, 2) // index compteur à la fin
+  startedAt    DateTime
+  endedAt      DateTime?
+  status       ShiftStatus @default(OPEN)
+  incidentNote String?     @db.Text // remarques/incidents
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  nozzle       Nozzle        @relation(fields: [nozzleId], references: [id])
+  pompiste     User          @relation(fields: [pompisteId], references: [id])
+  sales        Sale[]
+  cashRegister CashRegister?
+
+  @@map("shifts")
+}
+
+// ===========================================
+// SALE (Vente)
+// ===========================================
+model Sale {
+  id          String   @id @default(uuid())
+  shiftId     String
+  fuelTypeId  String
+  clientId    String? // null si vente B2C anonyme
+  quantity    Decimal  @db.Decimal(12, 2) // litres
+  unitPrice   Decimal  @db.Decimal(10, 2) // MAD/litre
+  totalAmount Decimal  @db.Decimal(12, 2) // MAD
+  soldAt      DateTime
+  createdAt   DateTime @default(now())
+
+  shift    Shift         @relation(fields: [shiftId], references: [id])
+  fuelType FuelType      @relation(fields: [fuelTypeId], references: [id])
+  client   Client?       @relation(fields: [clientId], references: [id])
+  payments SalePayment[]
+
+  @@map("sales")
+}
+
+// ===========================================
+// PAYMENT METHOD (Moyens de paiement)
+// ===========================================
+model PaymentMethod {
+  id                String   @id @default(uuid())
+  code              String   @unique // "CASH", "CARD", "VOUCHER", "CREDIT", "MOBILE"
+  name              String // "Espèces", "Carte bancaire", etc.
+  requiresReference Boolean // true si nécessite un numéro de transaction
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  salePayments    SalePayment[]
+  paymentDetails  PaymentDetail[]
+  invoicePayments InvoicePayment[]
+
+  @@map("payment_methods")
+}
+
+// ===========================================
+// SALE PAYMENT (Paiements par vente)
+// ===========================================
+model SalePayment {
+  id              String   @id @default(uuid())
+  saleId          String
+  paymentMethodId String
+  amount          Decimal  @db.Decimal(12, 2) // montant payé via ce moyen
+  reference       String? // N° transaction CB, N° bon, etc.
+  createdAt       DateTime @default(now())
+
+  sale          Sale          @relation(fields: [saleId], references: [id])
+  paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  @@map("sale_payments")
+}
+
+// ===========================================
+// CASH REGISTER (Clôture de caisse)
+// ===========================================
+model CashRegister {
+  id            String   @id @default(uuid())
+  shiftId       String   @unique // un shift = une caisse
+  expectedTotal Decimal  @db.Decimal(12, 2) // CA attendu calculé
+  actualTotal   Decimal  @db.Decimal(12, 2) // total déclaré
+  variance      Decimal  @db.Decimal(12, 2) // écart
+  varianceNote  String?  @db.Text // justification si écart
+  closedAt      DateTime
+  createdAt     DateTime @default(now())
+
+  shift          Shift           @relation(fields: [shiftId], references: [id])
+  paymentDetails PaymentDetail[]
+
+  @@map("cash_registers")
+}
+
+// ===========================================
+// PAYMENT DETAIL (Détail caisse par moyen)
+// ===========================================
+model PaymentDetail {
+  id              String   @id @default(uuid())
+  cashRegisterId  String
+  paymentMethodId String
+  expectedAmount  Decimal  @db.Decimal(12, 2)
+  actualAmount    Decimal  @db.Decimal(12, 2)
+  variance        Decimal  @db.Decimal(12, 2)
+  reference       String? // N° bordereau CB, etc.
+  createdAt       DateTime @default(now())
+
+  cashRegister  CashRegister  @relation(fields: [cashRegisterId], references: [id])
+  paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  @@map("payment_details")
+}
+
+// ===========================================
+// SUPPLIER (Fournisseurs)
+// ===========================================
+model Supplier {
+  id          String   @id @default(uuid())
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  deliveries Delivery[]
+
+  @@map("suppliers")
+}
+
+// ===========================================
+// DELIVERY (Livraisons)
+// ===========================================
+model Delivery {
+  id                 String   @id @default(uuid())
+  tankId             String
+  supplierId         String
+  receivedByUserId   String
+  deliveryNoteNumber String   @unique // N° bon de livraison
+  quantity           Decimal  @db.Decimal(12, 2) // litres livrés
+  purchasePrice      Decimal  @db.Decimal(10, 2) // MAD/litre
+  levelBefore        Decimal  @db.Decimal(12, 2) // jauge avant livraison
+  levelAfter         Decimal  @db.Decimal(12, 2) // jauge après livraison
+  temperature        Decimal? @db.Decimal(5, 2) // température carburant
+  deliveredAt        DateTime
+  createdAt          DateTime @default(now())
+
+  tank       Tank     @relation(fields: [tankId], references: [id])
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  receivedBy User     @relation(fields: [receivedByUserId], references: [id])
+
+  @@map("deliveries")
+}
+
+// ===========================================
+// STOCK MOVEMENT (Mouvements de stock)
+// ===========================================
+model StockMovement {
+  id            String       @id @default(uuid())
+  tankId        String
+  userId        String
+  movementType  MovementType
+  quantity      Decimal      @db.Decimal(12, 2) // positif=entrée, négatif=sortie
+  balanceAfter  Decimal      @db.Decimal(12, 2) // stock après mouvement
+  referenceId   String? // ID de la source : Delivery, Sale, etc.
+  referenceType String? // "DELIVERY", "SALE", "MANUAL"
+  reason        String?      @db.Text // motif si ajustement/perte
+  createdAt     DateTime     @default(now())
+
+  tank Tank @relation(fields: [tankId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("stock_movements")
+}
+
+// ===========================================
+// PRICE (Prix carburant avec historique)
+// ===========================================
+model Price {
+  id              String    @id @default(uuid())
+  stationId       String
+  fuelTypeId      String
+  sellingPrice    Decimal   @db.Decimal(10, 2) // prix vente TTC MAD/litre
+  sellingPriceHT  Decimal   @db.Decimal(10, 2) // prix vente HT
+  purchasePrice   Decimal   @db.Decimal(10, 2) // prix achat MAD/litre
+  effectiveFrom   DateTime // date/heure de début de validité
+  effectiveTo     DateTime? // null si prix actif
+  createdByUserId String
+  createdAt       DateTime  @default(now())
+
+  station   Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  fuelType  FuelType @relation(fields: [fuelTypeId], references: [id])
+  createdBy User     @relation(fields: [createdByUserId], references: [id])
+
+  @@map("prices")
+}
+
+// ===========================================
+// CLIENT (Clients B2B et B2C enregistrés)
+// ===========================================
+model Client {
+  id              String     @id @default(uuid())
+  stationId       String
+  clientType      ClientType
+  companyName     String? // null si particulier
+  contactName     String?
+  ice             String? // Identifiant Commun Entreprise (B2B)
+  taxId           String? // Identifiant Fiscal
+  rc              String? // Registre Commerce
+  address         String?
+  phone           String?
+  email           String?
+  creditLimit     Decimal    @default(0) @db.Decimal(12, 2) // plafond crédit MAD
+  currentBalance  Decimal    @default(0) @db.Decimal(12, 2) // solde actuel
+  paymentTermDays Int        @default(30) // délai paiement en jours
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  station  Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  sales    Sale[]
+  invoices Invoice[]
+
+  @@map("clients")
+}
+
+// ===========================================
+// INVOICE (Factures)
+// ===========================================
+model Invoice {
+  id            String        @id @default(uuid())
+  stationId     String
+  clientId      String? // null si ticket B2C anonyme
+  invoiceNumber String        @unique // numéro séquentiel
+  invoiceType   InvoiceType
+  status        InvoiceStatus @default(DRAFT)
+  amountHT      Decimal       @db.Decimal(12, 2)
+  vatRate       Decimal       @db.Decimal(5, 2) // ex: 20.00 pour 20%
+  vatAmount     Decimal       @db.Decimal(12, 2)
+  amountTTC     Decimal       @db.Decimal(12, 2)
+  paidAmount    Decimal       @default(0) @db.Decimal(12, 2) // montant déjà payé
+  periodStart   DateTime?     @db.Date // début période facturée
+  periodEnd     DateTime?     @db.Date // fin période facturée
+  notes         String?       @db.Text
+  issuedAt      DateTime?
+  dueDate       DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+
+  station     Station          @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  client      Client?          @relation(fields: [clientId], references: [id])
+  lines       InvoiceLine[]
+  payments    InvoicePayment[]
+  creditNotes CreditNote[]
+
+  @@map("invoices")
+}
+
+// ===========================================
+// INVOICE LINE (Lignes de facture)
+// ===========================================
+model InvoiceLine {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  fuelTypeId  String
+  description String?
+  quantity    Decimal  @db.Decimal(12, 2)
+  unitPriceHT Decimal  @db.Decimal(10, 2)
+  totalHT     Decimal  @db.Decimal(12, 2)
+  vatRate     Decimal  @db.Decimal(5, 2)
+  vatAmount   Decimal  @db.Decimal(12, 2)
+  totalTTC    Decimal  @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+
+  invoice  Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  fuelType FuelType @relation(fields: [fuelTypeId], references: [id])
+
+  @@map("invoice_lines")
+}
+
+// ===========================================
+// INVOICE PAYMENT (Règlements de factures)
+// ===========================================
+model InvoicePayment {
+  id              String   @id @default(uuid())
+  invoiceId       String
+  paymentMethodId String
+  amount          Decimal  @db.Decimal(12, 2)
+  reference       String? // N° chèque, virement...
+  paymentDate     DateTime @db.Date
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id])
+  paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  @@map("invoice_payments")
+}
+
+// ===========================================
+// CREDIT NOTE (Avoirs)
+// ===========================================
+model CreditNote {
+  id                String   @id @default(uuid())
+  originalInvoiceId String
+  creditNoteNumber  String   @unique
+  amountHT          Decimal  @db.Decimal(12, 2)
+  vatAmount         Decimal  @db.Decimal(12, 2)
+  amountTTC         Decimal  @db.Decimal(12, 2)
+  reason            String   @db.Text
+  issuedAt          DateTime
+  createdAt         DateTime @default(now())
+
+  originalInvoice Invoice @relation(fields: [originalInvoiceId], references: [id])
+
+  @@map("credit_notes")
+}
+
+// ===========================================
+// MAINTENANCE LOG (Interventions techniques)
+// ===========================================
+model MaintenanceLog {
+  id                String            @id @default(uuid())
+  stationId         String
+  dispenserId       String? // null si intervention sur cuve
+  tankId            String? // null si intervention sur distributeur
+  nozzleId          String? // null si pas sur pistolet
+  performedByUserId String? // null si prestataire externe
+  maintenanceType   MaintenanceType
+  status            MaintenanceStatus @default(SCHEDULED)
+  title             String
+  description       String?           @db.Text
+  findings          String?           @db.Text // constatations
+  actionsTaken      String?           @db.Text // actions réalisées
+  cost              Decimal?          @db.Decimal(12, 2) // coût intervention MAD
+  vendorName        String? // nom prestataire externe
+  scheduledAt       DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  nextScheduledAt   DateTime? // prochaine maintenance
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  station     Station    @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  dispenser   Dispenser? @relation(fields: [dispenserId], references: [id])
+  tank        Tank?      @relation(fields: [tankId], references: [id])
+  nozzle      Nozzle?    @relation(fields: [nozzleId], references: [id])
+  performedBy User?      @relation(fields: [performedByUserId], references: [id])
+
+  @@map("maintenance_logs")
+}
+
+// ===========================================
+// ALERT (Alertes système)
+// ===========================================
+model Alert {
+  id                   String        @id @default(uuid())
+  stationId            String
+  alertType            AlertType
+  priority             AlertPriority
+  status               AlertStatus   @default(ACTIVE)
+  title                String
+  message              String        @db.Text
+  relatedEntityId      String? // ID de l'entité concernée
+  relatedEntityType    String? // "Tank", "Shift", "Client", etc.
+  acknowledgedByUserId String?
+  resolvedByUserId     String?
+  triggeredAt          DateTime
+  acknowledgedAt       DateTime?
+  resolvedAt           DateTime?
+  createdAt            DateTime      @default(now())
+
+  station        Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  acknowledgedBy User?   @relation("AlertAcknowledgedBy", fields: [acknowledgedByUserId], references: [id])
+  resolvedBy     User?   @relation("AlertResolvedBy", fields: [resolvedByUserId], references: [id])
+
+  @@map("alerts")
+}
+
+// ===========================================
+// LICENCE (Abonnement station)
+// ===========================================
+model Licence {
+  id            String        @id @default(uuid())
+  stationId     String        @unique // une licence par station
+  plan          LicencePlan
+  status        LicenceStatus @default(ACTIVE)
+  startDate     DateTime
+  endDate       DateTime
+  maxUsers      Int           @default(5)
+  maxDispensers Int           @default(4)
+  features      Json? // fonctionnalités activées {"invoicing": true, "reports": true, ...}
+  lastCheckedAt DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([endDate])
+  @@map("licences")
+}
+
+// ===========================================
+// AUDIT LOG (Traçabilité)
+// ===========================================
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String? // null si action système
+  stationId  String?
+  action     String // "CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT"
+  entityType String // "Station", "Shift", "Sale", etc.
+  entityId   String?
+  oldValue   Json? // valeurs avant modification
+  newValue   Json? // valeurs après modification
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id])
+  station Station? @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
+
+// ===========================================
+// POMPISTE DEBT (Dettes des pompistes)
+// ===========================================
+enum DebtReason {
+  CASH_VARIANCE // Écart de caisse
+  ADVANCE // Avance sur salaire
+  DAMAGE // Casse/dégât matériel
+  FUEL_LOSS // Perte carburant
+  OTHER // Autre
+}
+
+enum DebtStatus {
+  PENDING // En attente
+  PARTIALLY_PAID // Partiellement remboursé
+  PAID // Soldé
+  CANCELLED // Annulé
+}
+
+model PompisteDebt {
+  id                String     @id @default(uuid())
+  pompisteId        String
+  stationId         String
+  amount            Decimal    @db.Decimal(12, 2) // Montant initial
+  remainingAmount   Decimal    @db.Decimal(12, 2) // Reste à payer
+  reason            DebtReason
+  status            DebtStatus @default(PENDING)
+  description       String?    @db.Text // Détails
+  relatedEntityId   String? // ex: cashRegisterId si écart caisse
+  relatedEntityType String? // ex: "CashRegister"
+  createdByUserId   String // Gestionnaire qui crée
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  pompiste    User          @relation("PompisteDebts", fields: [pompisteId], references: [id])
+  station     Station       @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  createdBy   User          @relation("DebtsCreatedBy", fields: [createdByUserId], references: [id])
+  payments    DebtPayment[]
+
+  @@index([pompisteId])
+  @@index([stationId])
+  @@index([status])
+  @@map("pompiste_debts")
+}
+
+model DebtPayment {
+  id               String   @id @default(uuid())
+  debtId           String
+  amount           Decimal  @db.Decimal(12, 2)
+  paymentMethod    String // "CASH", "SALARY_DEDUCTION", "OTHER"
+  note             String?  @db.Text
+  receivedByUserId String // Qui reçoit le paiement
+  paymentDate      DateTime
+  createdAt        DateTime @default(now())
+
+  debt       PompisteDebt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  receivedBy User         @relation("DebtPaymentsReceived", fields: [receivedByUserId], references: [id])
+
+  @@index([debtId])
+  @@map("debt_payments")
+}
