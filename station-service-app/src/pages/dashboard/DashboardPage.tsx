@@ -1,35 +1,285 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  BanknotesIcon,
+  BeakerIcon,
+  ChartBarIcon,
+  BellAlertIcon,
+  ArrowPathIcon,
+  CalendarIcon,
+  ChevronDownIcon,
+} from '@heroicons/react/24/outline';
+import { useAuthStore } from '@/stores/authStore';
+import {
+  KpiCard,
+  SalesChart,
+  TankGaugesGrid,
+  ActiveShiftsCard,
+  AlertsCard,
+  RecentSalesTable,
+  TopPompistesCard,
+  DebtsOverviewCard,
+} from '@/components/dashboard';
+import {
+  dashboardService,
+  DailySummary,
+  MonthlySummary,
+  StockStatus,
+  AlertsOverview,
+  DebtsOverview,
+  ActiveShift,
+  RecentSale,
+} from '@/services/dashboardService';
+
+type Period = 'today' | '7days' | '30days' | 'month';
+
+const periodOptions: { value: Period; label: string }[] = [
+  { value: 'today', label: 'Aujourd\'hui' },
+  { value: '7days', label: '7 derniers jours' },
+  { value: '30days', label: '30 derniers jours' },
+  { value: 'month', label: 'Mois en cours' },
+];
+
 export function DashboardPage() {
+  const { user } = useAuthStore();
+  const queryClient = useQueryClient();
+  const [period, setPeriod] = useState<Period>('today');
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
+
+  const stationId = user?.stationId || '';
+
+  // Daily summary query
+  const { data: dailySummary, isLoading: loadingDaily } = useQuery<DailySummary>({
+    queryKey: ['dashboard', 'daily', stationId],
+    queryFn: () => dashboardService.getDailySummary(stationId),
+    enabled: !!stationId,
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+
+  // Monthly summary query
+  const { data: monthlySummary, isLoading: loadingMonthly } = useQuery<MonthlySummary>({
+    queryKey: ['dashboard', 'monthly', stationId],
+    queryFn: () => dashboardService.getMonthlySummary(stationId),
+    enabled: !!stationId,
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+
+  // Stock status query
+  const { data: stockStatus, isLoading: loadingStock } = useQuery<StockStatus>({
+    queryKey: ['dashboard', 'stock', stationId],
+    queryFn: () => dashboardService.getStockStatus(stationId),
+    enabled: !!stationId,
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+
+  // Alerts overview query
+  const { data: alertsOverview, isLoading: loadingAlerts } = useQuery<AlertsOverview>({
+    queryKey: ['dashboard', 'alerts', stationId],
+    queryFn: () => dashboardService.getAlertsOverview(stationId),
+    enabled: !!stationId,
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+
+  // Debts overview query
+  const { data: debtsOverview, isLoading: loadingDebts } = useQuery<DebtsOverview>({
+    queryKey: ['dashboard', 'debts', stationId],
+    queryFn: () => dashboardService.getDebtsOverview(stationId),
+    enabled: !!stationId,
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+
+  // Active shifts query
+  const { data: activeShifts = [], isLoading: loadingShifts } = useQuery<ActiveShift[]>({
+    queryKey: ['dashboard', 'shifts', stationId],
+    queryFn: () => dashboardService.getActiveShifts(stationId),
+    enabled: !!stationId,
+    staleTime: 15000,
+    refetchInterval: 30000,
+  });
+
+  // Recent sales query
+  const { data: recentSales = [], isLoading: loadingSales } = useQuery<RecentSale[]>({
+    queryKey: ['dashboard', 'recentSales', stationId],
+    queryFn: () => dashboardService.getRecentSales(stationId, 10),
+    enabled: !!stationId,
+    staleTime: 15000,
+    refetchInterval: 30000,
+  });
+
+  // Refresh all data
+  const handleRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  }, [queryClient]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClick = () => setShowPeriodDropdown(false);
+    if (showPeriodDropdown) {
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [showPeriodDropdown]);
+
+  // Calculate trend percentage
+  const calculateTrend = () => {
+    if (!monthlySummary?.comparisonPreviousMonth) return undefined;
+    return monthlySummary.comparisonPreviousMonth.amountChange;
+  };
+
+  const isAnyLoading = loadingDaily || loadingMonthly || loadingStock || loadingAlerts || loadingDebts || loadingShifts || loadingSales;
+
   return (
     <div className="space-y-6">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card">
-          <p className="text-sm text-secondary-500 mb-1">Ventes aujourd'hui</p>
-          <p className="text-2xl font-bold text-secondary-900">0 DH</p>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-secondary-900">Tableau de bord</h1>
+          <p className="text-secondary-500">Vue d'ensemble de votre station</p>
         </div>
-        <div className="card">
-          <p className="text-sm text-secondary-500 mb-1">Litres vendus</p>
-          <p className="text-2xl font-bold text-secondary-900">0 L</p>
-        </div>
-        <div className="card">
-          <p className="text-sm text-secondary-500 mb-1">Shifts actifs</p>
-          <p className="text-2xl font-bold text-secondary-900">0</p>
-        </div>
-        <div className="card">
-          <p className="text-sm text-secondary-500 mb-1">Alertes</p>
-          <p className="text-2xl font-bold text-warning-600">0</p>
+
+        <div className="flex items-center gap-3">
+          {/* Period selector */}
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPeriodDropdown(!showPeriodDropdown);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors"
+            >
+              <CalendarIcon className="h-5 w-5 text-secondary-500" />
+              <span className="text-sm font-medium text-secondary-700">
+                {periodOptions.find((p) => p.value === period)?.label}
+              </span>
+              <ChevronDownIcon className="h-4 w-4 text-secondary-500" />
+            </button>
+
+            {showPeriodDropdown && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-secondary-200 rounded-lg shadow-lg z-10">
+                {periodOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      setPeriod(option.value);
+                      setShowPeriodDropdown(false);
+                    }}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-secondary-50 first:rounded-t-lg last:rounded-b-lg ${
+                      period === option.value
+                        ? 'bg-primary-50 text-primary-700 font-medium'
+                        : 'text-secondary-700'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Refresh button */}
+          <button
+            onClick={handleRefresh}
+            disabled={isAnyLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white rounded-lg transition-colors"
+          >
+            <ArrowPathIcon className={`h-5 w-5 ${isAnyLoading ? 'animate-spin' : ''}`} />
+            <span className="text-sm font-medium hidden sm:inline">Actualiser</span>
+          </button>
         </div>
       </div>
 
-      {/* Placeholder content */}
-      <div className="card">
-        <h2 className="text-lg font-semibold text-secondary-900 mb-4">
-          Tableau de bord
-        </h2>
-        <p className="text-secondary-500">
-          Le contenu du tableau de bord sera implemente ici.
-        </p>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          title="Chiffre d'affaires"
+          value={`${(dailySummary?.totalSalesAmount || 0).toLocaleString('fr-FR')} MAD`}
+          trend={calculateTrend()}
+          trendLabel="vs mois dernier"
+          icon={BanknotesIcon}
+          color="success"
+          loading={loadingDaily}
+        />
+        <KpiCard
+          title="Litres vendus"
+          value={`${(dailySummary?.totalSalesLiters || 0).toLocaleString('fr-FR')} L`}
+          trend={monthlySummary?.comparisonPreviousMonth?.litersChange}
+          trendLabel="vs mois dernier"
+          icon={BeakerIcon}
+          color="primary"
+          loading={loadingDaily}
+        />
+        <KpiCard
+          title="Marge estimee"
+          value={`${(monthlySummary?.estimatedMargin || 0).toLocaleString('fr-FR')} MAD`}
+          icon={ChartBarIcon}
+          color="info"
+          loading={loadingMonthly}
+        />
+        <KpiCard
+          title="Alertes actives"
+          value={`${alertsOverview?.totalActive || 0}`}
+          icon={BellAlertIcon}
+          color={alertsOverview?.totalActive ? 'warning' : 'success'}
+          loading={loadingAlerts}
+        />
       </div>
+
+      {/* Sales Chart */}
+      <SalesChart
+        data={monthlySummary?.dailyEvolution || []}
+        loading={loadingMonthly}
+      />
+
+      {/* Middle Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Tank Gauges */}
+        <TankGaugesGrid
+          tanks={stockStatus?.tanks || []}
+          loading={loadingStock}
+        />
+
+        {/* Active Shifts */}
+        <ActiveShiftsCard
+          shifts={activeShifts}
+          loading={loadingShifts}
+        />
+      </div>
+
+      {/* Bottom Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Alerts */}
+        <AlertsCard
+          alerts={alertsOverview?.recentAlerts || []}
+          totalCount={alertsOverview?.totalActive || 0}
+          loading={loadingAlerts}
+        />
+
+        {/* Top Pompistes */}
+        <TopPompistesCard
+          pompistes={monthlySummary?.topPompistes || dailySummary?.salesByPompiste || []}
+          loading={loadingMonthly || loadingDaily}
+        />
+
+        {/* Debts Overview */}
+        <DebtsOverviewCard
+          totalActiveDebts={debtsOverview?.totalActiveDebts || 0}
+          activeDebtsCount={debtsOverview?.activeDebtsCount || 0}
+          pompistesWithDebtsCount={debtsOverview?.pompistesWithDebtsCount || 0}
+          topDebtors={debtsOverview?.topDebtors || []}
+          loading={loadingDebts}
+        />
+      </div>
+
+      {/* Recent Sales Table */}
+      <RecentSalesTable
+        sales={recentSales}
+        loading={loadingSales}
+      />
     </div>
   );
 }

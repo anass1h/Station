@@ -1,0 +1,15 @@
+export { StationsPage } from './StationsPage';
+export { StationFormPage } from './StationFormPage';
+export { TanksPage } from './TanksPage';
+export { TankFormPage } from './TankFormPage';
+export { DispensersPage } from './DispensersPage';
+export { DispenserFormPage } from './DispenserFormPage';
+export { NozzlesPage } from './NozzlesPage';
+export { NozzleFormPage } from './NozzleFormPage';
+export { PompistesPage } from './PompistesPage';
+export { PompisteFormPage } from './PompisteFormPage';
+export { PricesPage } from './PricesPage';
+export { PriceFormPage } from './PriceFormPage';
+export { SuppliersPage } from './SuppliersPage';
+export { SupplierFormPage } from './SupplierFormPage';
+export { PaymentMethodsPage } from './PaymentMethodsPage';

@@ -35,3 +35,5 @@ architecture.txt
 nul
 .env
 station-service/.env
+.env
+**/.env

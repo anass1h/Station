@@ -1,0 +1,15 @@
+export { ShiftsPage } from './ShiftsPage';
+export { ShiftDetailPage } from './ShiftDetailPage';
+export { SalesPage } from './SalesPage';
+export { SaleDetailPage } from './SaleDetailPage';
+export { DeliveriesPage } from './DeliveriesPage';
+export { DeliveryFormPage } from './DeliveryFormPage';
+export { StockPage } from './StockPage';
+export { StockAdjustmentPage } from './StockAdjustmentPage';
+export { CashRegistersPage } from './CashRegistersPage';
+export { ClientsPage } from './ClientsPage';
+export { ClientFormPage } from './ClientFormPage';
+export { ClientDetailPage } from './ClientDetailPage';
+export { InvoicesPage } from './InvoicesPage';
+export { InvoiceFormPage } from './InvoiceFormPage';
+export { InvoiceDetailPage } from './InvoiceDetailPage';

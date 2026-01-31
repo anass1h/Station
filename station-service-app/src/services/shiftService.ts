@@ -17,6 +17,11 @@ export interface Shift {
     dispenser: {
       id: string;
       reference: string;
+      stationId: string;
+      station?: {
+        id: string;
+        name: string;
+      };
     };
     tank: {
       id: string;
