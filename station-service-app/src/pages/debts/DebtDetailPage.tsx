@@ -57,8 +57,8 @@ export function DebtDetailPage() {
     );
   }
 
-  const paidAmount = debt.initialAmount - debt.remainingAmount;
-  const progress = (paidAmount / debt.initialAmount) * 100;
+  const paidAmount = Number(debt.initialAmount) - Number(debt.remainingAmount);
+  const progress = (paidAmount / Number(debt.initialAmount)) * 100;
   const statusConfig = debtService.getStatusConfig(debt.status);
 
   const paymentColumns: Column<DebtPayment>[] = [
@@ -70,7 +70,7 @@ export function DebtDetailPage() {
     {
       key: 'amount',
       label: 'Montant',
-      render: (p) => <span className="font-medium text-success-600">{formatCurrency(p.amount)}</span>,
+      render: (p) => <span className="font-medium text-success-600">{formatCurrency(Number(p.amount))}</span>,
     },
     {
       key: 'paymentMethod',
@@ -208,7 +208,7 @@ export function DebtDetailPage() {
             >
               <p className="text-sm text-warning-600">Écart de caisse</p>
               <p className="text-lg font-bold text-warning-700">
-                {formatCurrency(Math.abs(debt.cashRegister.variance))}
+                {formatCurrency(Math.abs(Number(debt.cashRegister.variance)))}
               </p>
               <p className="text-xs text-warning-500 mt-1">Cliquez pour voir le shift</p>
             </Link>
@@ -223,7 +223,7 @@ export function DebtDetailPage() {
         <div className="mb-4">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-secondary-600">
-              {formatCurrency(paidAmount)} / {formatCurrency(debt.initialAmount)}
+              {formatCurrency(paidAmount)} / {formatCurrency(Number(debt.initialAmount))}
             </span>
             <span className="font-medium">{progress.toFixed(0)}%</span>
           </div>
@@ -244,7 +244,7 @@ export function DebtDetailPage() {
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center p-4 bg-secondary-50 rounded-lg">
             <p className="text-sm text-secondary-500">Montant initial</p>
-            <p className="text-xl font-bold text-secondary-900">{formatCurrency(debt.initialAmount)}</p>
+            <p className="text-xl font-bold text-secondary-900">{formatCurrency(Number(debt.initialAmount))}</p>
           </div>
           <div className="text-center p-4 bg-success-50 rounded-lg">
             <p className="text-sm text-success-600">Paye</p>
@@ -252,7 +252,7 @@ export function DebtDetailPage() {
           </div>
           <div className="text-center p-4 bg-danger-50 rounded-lg">
             <p className="text-sm text-danger-600">Reste du</p>
-            <p className="text-xl font-bold text-danger-700">{formatCurrency(debt.remainingAmount)}</p>
+            <p className="text-xl font-bold text-danger-700">{formatCurrency(Number(debt.remainingAmount))}</p>
           </div>
         </div>
       </div>

@@ -25,6 +25,7 @@ import { DashboardModule } from './dashboard/index.js';
 import { LicenceModule, LicenceGuard } from './licence/index.js';
 import { CommonModule, CustomThrottlerGuard } from './common/index.js';
 import { PompisteDebtModule } from './pompiste-debt/index.js';
+import { UserModule } from './user/index.js';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { PompisteDebtModule } from './pompiste-debt/index.js';
     DashboardModule,
     LicenceModule,
     PompisteDebtModule,
+    UserModule,
   ],
   providers: [
     {

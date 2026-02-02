@@ -198,6 +198,78 @@ export const dashboardService = {
     const stockStatus = await dashboardService.getStockStatus(stationId);
     return stockStatus.tanks.filter(tank => tank.isLow);
   },
+
+  /**
+   * Get pompiste performance metrics
+   */
+  getPompistePerformance: async (stationId: string, pompisteId?: string, period?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{
+    pompisteId: string;
+    pompisteName: string;
+    shiftsCount: number;
+    totalLiters: number;
+    totalAmount: number;
+    avgSalesPerShift: number;
+    avgLitersPerShift: number;
+    cashVariances: number;
+  }[]> => {
+    const response = await axiosInstance.get(`/dashboard/pompiste-performance/${stationId}`, {
+      params: { pompisteId, ...period },
+    });
+    return response.data;
+  },
+
+  /**
+   * Get financial summary for a station
+   */
+  getFinancialSummary: async (stationId: string, period?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{
+    totalRevenue: number;
+    totalCost: number;
+    grossMargin: number;
+    receivables: number;
+    debts: number;
+    byFuelType: {
+      fuelTypeId: string;
+      name: string;
+      revenue: number;
+      cost: number;
+      margin: number;
+    }[];
+    byPaymentMethod: {
+      methodId: string;
+      name: string;
+      amount: number;
+    }[];
+  }> => {
+    const response = await axiosInstance.get(`/dashboard/financial/${stationId}`, {
+      params: period,
+    });
+    return response.data;
+  },
+
+  /**
+   * Get global summary overview (for SUPER_ADMIN only, no stationId)
+   */
+  getGlobalSummary: async (): Promise<{
+    salesCount: number;
+    totalLiters: number;
+    totalAmount: number;
+    activeShifts: number;
+    activePompistes: number;
+    activeAlerts: number;
+    lowStockTanks: number;
+    pendingDebts: number;
+    unpaidInvoices: number;
+    lastUpdated: string;
+  }> => {
+    const response = await axiosInstance.get('/dashboard/global');
+    return response.data;
+  },
 };
 
 export default dashboardService;

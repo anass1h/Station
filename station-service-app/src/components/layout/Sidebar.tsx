@@ -15,6 +15,10 @@ import {
   BellAlertIcon,
   KeyIcon,
   XMarkIcon,
+  BanknotesIcon,
+  AdjustmentsHorizontalIcon,
+  CreditCardIcon,
+  ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import {
   ChartBarIcon as ChartBarIconSolid,
@@ -31,6 +35,10 @@ import {
   CurrencyDollarIcon as CurrencyDollarIconSolid,
   BellAlertIcon as BellAlertIconSolid,
   KeyIcon as KeyIconSolid,
+  BanknotesIcon as BanknotesIconSolid,
+  AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
+  CreditCardIcon as CreditCardIconSolid,
+  ExclamationCircleIcon as ExclamationCircleIconSolid,
 } from '@heroicons/react/24/solid';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -50,20 +58,28 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { name: 'Dashboard', path: '/dashboard', icon: ChartBarIcon, iconSolid: ChartBarIconSolid },
-  { name: 'Shifts', path: '/shifts', icon: ClockIcon, iconSolid: ClockIconSolid },
-  { name: 'Ventes', path: '/ventes', icon: ShoppingCartIcon, iconSolid: ShoppingCartIconSolid },
-  { name: 'Stock', path: '/stock', icon: CubeIcon, iconSolid: CubeIconSolid },
-  { name: 'Livraisons', path: '/livraisons', icon: TruckIcon, iconSolid: TruckIconSolid },
-  { name: 'Clients', path: '/clients', icon: UsersIcon, iconSolid: UsersIconSolid },
-  { name: 'Factures', path: '/factures', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
+  { name: 'Shifts', path: '/operations/shifts', icon: ClockIcon, iconSolid: ClockIconSolid },
+  { name: 'Ventes', path: '/operations/ventes', icon: ShoppingCartIcon, iconSolid: ShoppingCartIconSolid },
+  { name: 'Stock', path: '/operations/stock', icon: CubeIcon, iconSolid: CubeIconSolid },
+  { name: 'Livraisons', path: '/operations/livraisons', icon: TruckIcon, iconSolid: TruckIconSolid },
+  { name: 'Clients', path: '/operations/clients', icon: UsersIcon, iconSolid: UsersIconSolid },
+  { name: 'Factures', path: '/operations/factures', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
+  { name: 'Caisses', path: '/operations/caisses', icon: BanknotesIcon, iconSolid: BanknotesIconSolid },
 ];
 
 const configNavItems: NavItem[] = [
-  { name: 'Stations', path: '/stations', icon: BuildingOfficeIcon, iconSolid: BuildingOfficeIconSolid },
-  { name: 'Cuves', path: '/cuves', icon: CircleStackIcon, iconSolid: CircleStackIconSolid },
-  { name: 'Distributeurs', path: '/distributeurs', icon: WrenchScrewdriverIcon, iconSolid: WrenchScrewdriverIconSolid },
-  { name: 'Pompistes', path: '/pompistes', icon: UserGroupIcon, iconSolid: UserGroupIconSolid },
-  { name: 'Prix', path: '/prix', icon: CurrencyDollarIcon, iconSolid: CurrencyDollarIconSolid },
+  { name: 'Stations', path: '/gestion/stations', icon: BuildingOfficeIcon, iconSolid: BuildingOfficeIconSolid },
+  { name: 'Cuves', path: '/gestion/cuves', icon: CircleStackIcon, iconSolid: CircleStackIconSolid },
+  { name: 'Distributeurs', path: '/gestion/distributeurs', icon: WrenchScrewdriverIcon, iconSolid: WrenchScrewdriverIconSolid },
+  { name: 'Pistolets', path: '/gestion/pistolets', icon: AdjustmentsHorizontalIcon, iconSolid: AdjustmentsHorizontalIconSolid },
+  { name: 'Pompistes', path: '/gestion/pompistes', icon: UserGroupIcon, iconSolid: UserGroupIconSolid },
+  { name: 'Prix', path: '/gestion/prix', icon: CurrencyDollarIcon, iconSolid: CurrencyDollarIconSolid },
+  { name: 'Fournisseurs', path: '/gestion/fournisseurs', icon: TruckIcon, iconSolid: TruckIconSolid },
+  { name: 'Paiements', path: '/gestion/paiements', icon: CreditCardIcon, iconSolid: CreditCardIconSolid },
+];
+
+const financeNavItems: NavItem[] = [
+  { name: 'Dettes', path: '/dettes', icon: ExclamationCircleIcon, iconSolid: ExclamationCircleIconSolid },
 ];
 
 const alertNavItems: NavItem[] = [
@@ -170,6 +186,25 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </p>
             <div className="space-y-1">
               {configNavItems.filter(shouldShowItem).map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={navLinkClass}
+                  onClick={() => onClose()}
+                >
+                  {({ isActive }) => renderNavItem(item, isActive)}
+                </NavLink>
+              ))}
+            </div>
+          </div>
+
+          {/* Finance */}
+          <div>
+            <p className="px-3 text-xs font-semibold text-secondary-400 uppercase tracking-wider mb-2">
+              Finance
+            </p>
+            <div className="space-y-1">
+              {financeNavItems.filter(shouldShowItem).map((item) => (
                 <NavLink
                   key={item.path}
                   to={item.path}

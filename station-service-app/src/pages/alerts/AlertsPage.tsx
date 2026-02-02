@@ -1,14 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FunnelIcon, BellIcon } from '@heroicons/react/24/outline';
+import { FunnelIcon, BellIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 import { alertService, AlertPriority, AlertStatus, AlertType } from '@/services/alertService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { AlertCard, AlertFilters } from '@/components/alerts';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export function AlertsPage() {
   const { user } = useAuthStore();
-  const stationId = user?.stationId || '';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const [selectedStationId, setSelectedStationId] = useState<string>(user?.stationId || '');
+
+  // Fetch stations for SUPER_ADMIN
+  const { data: stations = [] } = useQuery<Station[]>({
+    queryKey: ['stations'],
+    queryFn: stationService.getAll,
+    enabled: isSuperAdmin,
+  });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStationId && stations.length > 0) {
+      setSelectedStationId(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStationId, stations]);
+
+  const stationId = selectedStationId || user?.stationId || '';
 
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -54,19 +72,42 @@ export function AlertsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-secondary-900">Alertes</h1>
-          <p className="text-secondary-500">Suivi des alertes et notifications</p>
+          <p className="text-secondary-500">
+            {isSuperAdmin && stations.length > 0
+              ? `Station: ${stations.find(s => s.id === stationId)?.name || 'Selectionnez une station'}`
+              : 'Suivi des alertes et notifications'}
+          </p>
         </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-            showFilters
-              ? 'border-primary-500 bg-primary-50 text-primary-700'
-              : 'border-secondary-300 bg-white text-secondary-700 hover:bg-secondary-50'
-          }`}
-        >
-          <FunnelIcon className="h-5 w-5" />
-          <span>Filtres</span>
-        </button>
+        <div className="flex gap-2">
+          {/* Station selector for SUPER_ADMIN */}
+          {isSuperAdmin && stations.length > 0 && (
+            <div className="relative">
+              <select
+                value={selectedStationId}
+                onChange={(e) => setSelectedStationId(e.target.value)}
+                className="flex items-center gap-2 px-4 py-2 pr-8 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors text-sm font-medium text-secondary-700 appearance-none cursor-pointer"
+              >
+                {stations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+              <BuildingStorefrontIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary-500 pointer-events-none" />
+            </div>
+          )}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              showFilters
+                ? 'border-primary-500 bg-primary-50 text-primary-700'
+                : 'border-secondary-300 bg-white text-secondary-700 hover:bg-secondary-50'
+            }`}
+          >
+            <FunnelIcon className="h-5 w-5" />
+            <span>Filtres</span>
+          </button>
+        </div>
       </div>
 
       {/* Priority Counters */}

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { PlusIcon, FunnelIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, FunnelIcon, ArrowDownTrayIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 import { deliveryService, Delivery } from '@/services/deliveryService';
 import { supplierService } from '@/services/supplierService';
 import { tankService } from '@/services/tankService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { SelectField } from '@/components/ui/SelectField';
@@ -13,7 +14,24 @@ import { exportToExcel, formatDate, formatCurrency, formatNumber } from '@/utils
 export function DeliveriesPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const stationId = user?.stationId || '';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const [selectedStationId, setSelectedStationId] = useState<string>(user?.stationId || '');
+
+  // Fetch stations for SUPER_ADMIN
+  const { data: stations = [] } = useQuery<Station[]>({
+    queryKey: ['stations'],
+    queryFn: stationService.getAll,
+    enabled: isSuperAdmin,
+  });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStationId && stations.length > 0) {
+      setSelectedStationId(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStationId, stations]);
+
+  const stationId = selectedStationId || user?.stationId || '';
 
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -53,15 +71,15 @@ export function DeliveriesPage() {
       { key: 'supplier.name', label: 'Fournisseur' },
       { key: 'tank.reference', label: 'Cuve' },
       { key: 'tank.fuelType.name', label: 'Carburant' },
-      { key: 'quantity', label: 'Litres', format: (v) => formatNumber(v as number) },
-      { key: 'purchasePrice', label: 'PU', format: (v) => formatNumber(v as number, 2) },
-      { key: 'totalAmount', label: 'Total', format: (v) => formatCurrency(v as number) },
+      { key: 'quantity', label: 'Litres', format: (v) => formatNumber(Number(v)) },
+      { key: 'purchasePrice', label: 'PU', format: (v) => formatNumber(Number(v), 2) },
+      { key: 'totalAmount', label: 'Total', format: (v) => formatCurrency(Number(v)) },
       { key: 'receivedBy', label: 'Recu par', format: (_, item) => `${(item as Delivery).receivedBy?.firstName} ${(item as Delivery).receivedBy?.lastName}` },
     ]);
   };
 
-  const totalLiters = deliveries.reduce((sum, d) => sum + d.quantity, 0);
-  const totalAmount = deliveries.reduce((sum, d) => sum + d.totalAmount, 0);
+  const totalLiters = deliveries.reduce((sum, d) => sum + Number(d.quantity), 0);
+  const totalAmount = deliveries.reduce((sum, d) => sum + Number(d.totalAmount), 0);
 
   const columns: Column<Delivery>[] = [
     {
@@ -102,18 +120,18 @@ export function DeliveriesPage() {
       key: 'quantity',
       label: 'Litres',
       sortable: true,
-      render: (d) => `${formatNumber(d.quantity)} L`,
+      render: (d) => `${formatNumber(Number(d.quantity))} L`,
     },
     {
       key: 'purchasePrice',
       label: 'PU',
-      render: (d) => `${formatNumber(d.purchasePrice)} MAD`,
+      render: (d) => `${formatNumber(Number(d.purchasePrice))} MAD`,
     },
     {
       key: 'totalAmount',
       label: 'Total',
       sortable: true,
-      render: (d) => <span className="font-medium">{formatCurrency(d.totalAmount)}</span>,
+      render: (d) => <span className="font-medium">{formatCurrency(Number(d.totalAmount))}</span>,
     },
     {
       key: 'receivedBy',
@@ -131,9 +149,30 @@ export function DeliveriesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-secondary-900">Livraisons</h1>
-          <p className="text-secondary-500">Historique des livraisons de carburant</p>
+          <p className="text-secondary-500">
+            {isSuperAdmin && stations.length > 0
+              ? `Station: ${stations.find(s => s.id === stationId)?.name || 'Selectionnez une station'}`
+              : 'Historique des livraisons de carburant'}
+          </p>
         </div>
         <div className="flex gap-2">
+          {/* Station selector for SUPER_ADMIN */}
+          {isSuperAdmin && stations.length > 0 && (
+            <div className="relative">
+              <select
+                value={selectedStationId}
+                onChange={(e) => setSelectedStationId(e.target.value)}
+                className="flex items-center gap-2 px-4 py-2 pr-8 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors text-sm font-medium text-secondary-700 appearance-none cursor-pointer"
+              >
+                {stations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+              <BuildingStorefrontIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary-500 pointer-events-none" />
+            </div>
+          )}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${

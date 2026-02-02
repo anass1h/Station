@@ -102,7 +102,14 @@ export function ActiveShiftsCard({ shifts, loading = false, onShiftClick }: Acti
       ) : (
         <div className="space-y-3">
           {shifts.map((shift) => {
-            const liters = shift.currentIndex - shift.indexStart;
+            const liters = (shift.currentIndex || 0) - (shift.indexStart || 0);
+            const pompisteName = shift.pompisteName || 'Inconnu';
+            const initials = pompisteName
+              .split(' ')
+              .map(n => n[0] || '')
+              .join('')
+              .slice(0, 2)
+              .toUpperCase() || '??';
 
             return (
               <button
@@ -113,23 +120,23 @@ export function ActiveShiftsCard({ shifts, loading = false, onShiftClick }: Acti
                 {/* Avatar */}
                 <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
                   <span className="text-primary-700 font-semibold text-sm">
-                    {shift.pompisteName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    {initials}
                   </span>
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-secondary-900 truncate">
-                    {shift.pompisteName}
+                    {pompisteName}
                   </p>
                   <p className="text-sm text-secondary-500">
-                    {shift.nozzleReference} - {shift.fuelTypeName}
+                    {shift.nozzleReference || 'N/A'} - {shift.fuelTypeName || 'N/A'}
                   </p>
                 </div>
 
                 {/* Stats */}
                 <div className="text-right">
-                  <ShiftDuration startedAt={shift.startedAt} />
+                  {shift.startedAt && <ShiftDuration startedAt={shift.startedAt} />}
                   <p className="text-sm font-medium text-secondary-700">
                     {liters.toFixed(0)} L
                   </p>

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { tankService, Tank } from '@/services/tankService';
-import { stationService } from '@/services/stationService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { DataTable, Column, TableAction } from '@/components/ui/DataTable';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -24,11 +24,18 @@ export function TanksPage() {
     tank: null,
   });
 
-  const { data: stations = [] } = useQuery({
+  const { data: stations = [] } = useQuery<Station[]>({
     queryKey: ['stations'],
     queryFn: stationService.getAll,
     enabled: isSuperAdmin,
   });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStation && stations.length > 0) {
+      setSelectedStation(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStation, stations]);
 
   const { data: tanks = [], isLoading } = useQuery({
     queryKey: ['tanks', selectedStation],
@@ -53,8 +60,9 @@ export function TanksPage() {
   });
 
   const getLevelColor = (tank: Tank) => {
-    const percentage = (tank.currentLevel / tank.capacity) * 100;
-    if (percentage <= tank.alertThreshold) return 'danger';
+    const percentage = (Number(tank.currentLevel) / Number(tank.capacity)) * 100;
+    const threshold = Number(tank.alertThreshold ?? tank.lowThreshold ?? 20);
+    if (percentage <= threshold) return 'danger';
     if (percentage <= 30) return 'warning';
     return 'success';
   };
@@ -84,7 +92,7 @@ export function TanksPage() {
       key: 'currentLevel',
       label: 'Niveau actuel',
       render: (t) => {
-        const percentage = (t.currentLevel / t.capacity) * 100;
+        const percentage = (Number(t.currentLevel) / Number(t.capacity)) * 100;
         const color = getLevelColor(t);
         const colorClasses = {
           success: 'bg-success-500',
@@ -94,7 +102,7 @@ export function TanksPage() {
         return (
           <div className="space-y-1">
             <div className="flex items-center justify-between text-sm">
-              <span>{t.currentLevel.toLocaleString('fr-FR')} L</span>
+              <span>{Number(t.currentLevel).toLocaleString('fr-FR')} L</span>
               <span className="text-secondary-500">{percentage.toFixed(0)}%</span>
             </div>
             <div className="h-2 bg-secondary-200 rounded-full overflow-hidden">
@@ -110,7 +118,7 @@ export function TanksPage() {
     {
       key: 'alertThreshold',
       label: 'Seuil alerte',
-      render: (t) => `${t.alertThreshold}%`,
+      render: (t) => `${t.alertThreshold ?? t.lowThreshold ?? 20}%`,
     },
     {
       key: 'isActive',

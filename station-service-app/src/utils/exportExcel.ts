@@ -61,11 +61,13 @@ export function formatDateTime(date: string | Date): string {
   return new Date(date).toLocaleString('fr-FR');
 }
 
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number | undefined | null): string {
+  if (amount === undefined || amount === null) return '0 MAD';
   return `${amount.toLocaleString('fr-FR')} MAD`;
 }
 
-export function formatNumber(value: number, decimals: number = 2): string {
+export function formatNumber(value: number | undefined | null, decimals: number = 2): string {
+  if (value === undefined || value === null) return '0';
   return value.toLocaleString('fr-FR', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,

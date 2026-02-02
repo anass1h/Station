@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -7,8 +7,10 @@ import {
   EyeIcon,
   DocumentPlusIcon,
   FunnelIcon,
+  BuildingStorefrontIcon,
 } from '@heroicons/react/24/outline';
 import { clientService, Client, ClientType } from '@/services/clientService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { DataTable, Column, TableAction } from '@/components/ui/DataTable';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -24,7 +26,24 @@ const typeLabels: Record<ClientType, string> = {
 export function ClientsPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const stationId = user?.stationId || '';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const [selectedStationId, setSelectedStationId] = useState<string>(user?.stationId || '');
+
+  // Fetch stations for SUPER_ADMIN
+  const { data: stations = [] } = useQuery<Station[]>({
+    queryKey: ['stations'],
+    queryFn: stationService.getAll,
+    enabled: isSuperAdmin,
+  });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStationId && stations.length > 0) {
+      setSelectedStationId(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStationId, stations]);
+
+  const stationId = selectedStationId || user?.stationId || '';
 
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -53,9 +72,9 @@ export function ClientsPage() {
   });
 
   const getBalanceStatus = (client: Client) => {
-    if (client.currentBalance === 0) return 'success';
-    if (client.creditLimit === 0) return 'secondary';
-    const ratio = client.currentBalance / client.creditLimit;
+    if (Number(client.currentBalance) === 0) return 'success';
+    if (Number(client.creditLimit) === 0) return 'secondary';
+    const ratio = Number(client.currentBalance) / Number(client.creditLimit);
     if (ratio >= 1) return 'danger';
     if (ratio >= 0.8) return 'warning';
     return 'info';
@@ -93,13 +112,13 @@ export function ClientsPage() {
     {
       key: 'creditLimit',
       label: 'Credit max',
-      render: (c) => c.creditLimit > 0 ? formatCurrency(c.creditLimit) : '-',
+      render: (c) => Number(c.creditLimit) > 0 ? formatCurrency(Number(c.creditLimit)) : '-',
     },
     {
       key: 'currentBalance',
       label: 'Solde',
       render: (c) => {
-        if (c.currentBalance === 0) return '-';
+        if (Number(c.currentBalance) === 0) return '-';
         const status = getBalanceStatus(c);
         return (
           <span className={`font-medium ${
@@ -107,7 +126,7 @@ export function ClientsPage() {
             status === 'warning' ? 'text-warning-600' :
             'text-secondary-900'
           }`}>
-            {formatCurrency(c.currentBalance)}
+            {formatCurrency(Number(c.currentBalance))}
           </span>
         );
       },
@@ -159,9 +178,30 @@ export function ClientsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-secondary-900">Clients</h1>
-          <p className="text-secondary-500">Gestion des clients B2B et B2C</p>
+          <p className="text-secondary-500">
+            {isSuperAdmin && stations.length > 0
+              ? `Station: ${stations.find(s => s.id === stationId)?.name || 'Selectionnez une station'}`
+              : 'Gestion des clients B2B et B2C'}
+          </p>
         </div>
         <div className="flex gap-2">
+          {/* Station selector for SUPER_ADMIN */}
+          {isSuperAdmin && stations.length > 0 && (
+            <div className="relative">
+              <select
+                value={selectedStationId}
+                onChange={(e) => setSelectedStationId(e.target.value)}
+                className="flex items-center gap-2 px-4 py-2 pr-8 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors text-sm font-medium text-secondary-700 appearance-none cursor-pointer"
+              >
+                {stations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+              <BuildingStorefrontIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary-500 pointer-events-none" />
+            </div>
+          )}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${

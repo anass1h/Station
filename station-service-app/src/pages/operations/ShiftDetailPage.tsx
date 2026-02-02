@@ -89,12 +89,12 @@ export function ShiftDetailPage() {
     {
       key: 'quantity',
       label: 'Litres',
-      render: (s) => `${formatNumber(s.quantity)} L`,
+      render: (s) => `${formatNumber(Number(s.quantity))} L`,
     },
     {
       key: 'totalAmount',
       label: 'Montant',
-      render: (s) => formatCurrency(s.totalAmount),
+      render: (s) => formatCurrency(Number(s.totalAmount)),
     },
     {
       key: 'paymentMethod',
@@ -196,7 +196,7 @@ export function ShiftDetailPage() {
             <div>
               <p className="text-sm text-secondary-500">Chiffre d'affaires</p>
               <p className="font-semibold text-success-600">
-                {formatCurrency(shift.totalAmount)}
+                {formatCurrency(Number(shift.totalAmount))}
               </p>
             </div>
           </div>
@@ -209,17 +209,17 @@ export function ShiftDetailPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="text-center">
             <p className="text-sm text-secondary-500 mb-1">Index debut</p>
-            <p className="text-2xl font-bold text-secondary-900">{formatNumber(shift.startIndex)} L</p>
+            <p className="text-2xl font-bold text-secondary-900">{formatNumber(Number(shift.startIndex))} L</p>
           </div>
           <div className="text-center">
             <p className="text-sm text-secondary-500 mb-1">Index fin</p>
             <p className="text-2xl font-bold text-secondary-900">
-              {shift.endIndex ? `${formatNumber(shift.endIndex)} L` : '-'}
+              {shift.endIndex ? `${formatNumber(Number(shift.endIndex))} L` : '-'}
             </p>
           </div>
           <div className="text-center">
             <p className="text-sm text-secondary-500 mb-1">Litres vendus</p>
-            <p className="text-2xl font-bold text-primary-600">{formatNumber(shift.totalLiters)} L</p>
+            <p className="text-2xl font-bold text-primary-600">{formatNumber(Number(shift.totalLiters))} L</p>
           </div>
           <div className="text-center">
             <p className="text-sm text-secondary-500 mb-1">Nombre de ventes</p>
@@ -249,25 +249,25 @@ export function ShiftDetailPage() {
             <div className="text-center">
               <p className="text-sm text-secondary-600 mb-1">Montant attendu</p>
               <p className="text-2xl font-bold text-secondary-900">
-                {formatCurrency(shift.cashRegister.expectedAmount)}
+                {formatCurrency(Number(shift.cashRegister.expectedAmount))}
               </p>
             </div>
             <div className="text-center">
               <p className="text-sm text-secondary-600 mb-1">Montant declare</p>
               <p className="text-2xl font-bold text-secondary-900">
-                {formatCurrency(shift.cashRegister.declaredAmount)}
+                {formatCurrency(Number(shift.cashRegister.declaredAmount))}
               </p>
             </div>
             <div className="text-center">
               <p className="text-sm text-secondary-600 mb-1">Ecart</p>
               <p className={`text-2xl font-bold ${
-                shift.cashRegister.variance === 0
+                Number(shift.cashRegister.variance) === 0
                   ? 'text-success-600'
-                  : shift.cashRegister.variance > 0
+                  : Number(shift.cashRegister.variance) > 0
                     ? 'text-success-600'
                     : 'text-danger-600'
               }`}>
-                {shift.cashRegister.variance > 0 ? '+' : ''}{formatCurrency(shift.cashRegister.variance)}
+                {Number(shift.cashRegister.variance) > 0 ? '+' : ''}{formatCurrency(Number(shift.cashRegister.variance))}
               </p>
             </div>
           </div>

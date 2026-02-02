@@ -7,7 +7,8 @@ export interface Tank {
   reference: string;
   capacity: number;
   currentLevel: number;
-  alertThreshold: number;
+  lowThreshold: number; // Backend field name
+  alertThreshold?: number; // Frontend alias
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -15,7 +16,7 @@ export interface Tank {
     id: string;
     name: string;
     code: string;
-    color: string;
+    color?: string;
   };
   station?: {
     id: string;
@@ -29,7 +30,7 @@ export interface CreateTankDto {
   reference: string;
   capacity: number;
   currentLevel?: number;
-  alertThreshold?: number;
+  lowThreshold?: number;
 }
 
 export interface UpdateTankDto extends Partial<Omit<CreateTankDto, 'stationId'>> {
@@ -49,7 +50,7 @@ export const tankService = {
   },
 
   async getByStation(stationId: string): Promise<Tank[]> {
-    const response = await axiosInstance.get(`/tanks/station/${stationId}`);
+    const response = await axiosInstance.get('/tanks', { params: { stationId } });
     return response.data;
   },
 
@@ -68,7 +69,8 @@ export const tankService = {
   },
 
   async updateLevel(id: string, level: number): Promise<Tank> {
-    const response = await axiosInstance.patch(`/tanks/${id}/level`, { level });
+    // Use the standard update endpoint with currentLevel
+    const response = await axiosInstance.patch(`/tanks/${id}`, { currentLevel: level });
     return response.data;
   },
 };

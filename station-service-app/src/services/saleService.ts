@@ -10,7 +10,6 @@ export interface CreateSaleDto {
   shiftId: string;
   fuelTypeId: string;
   quantity: number;
-  unitPrice: number;
   payments: SalePayment[];
   clientId?: string;
 }
@@ -110,9 +109,32 @@ export const saleService = {
    * Get current fuel price for a station and fuel type
    */
   getCurrentPrice: async (stationId: string, fuelTypeId: string): Promise<{ price: number }> => {
-    const response = await axiosInstance.get<{ price: number }>('/prices/current', {
-      params: { stationId, fuelTypeId },
+    const response = await axiosInstance.get(`/prices/current/${stationId}/${fuelTypeId}`);
+    // Backend returns price object, extract sellingPrice
+    return { price: response.data?.sellingPrice || 0 };
+  },
+
+  /**
+   * Get sales by station with optional filters
+   */
+  getByStation: async (stationId: string, params?: {
+    startDate?: string;
+    endDate?: string;
+    pompisteId?: string;
+    fuelTypeId?: string;
+    paymentMethodId?: string;
+  }): Promise<Sale[]> => {
+    const response = await axiosInstance.get<Sale[]>(`/sales/by-station/${stationId}`, {
+      params,
     });
+    return response.data;
+  },
+
+  /**
+   * Get sales by client
+   */
+  getByClient: async (clientId: string): Promise<Sale[]> => {
+    const response = await axiosInstance.get<Sale[]>(`/sales/by-client/${clientId}`);
     return response.data;
   },
 };

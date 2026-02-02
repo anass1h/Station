@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowDownTrayIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, FunnelIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 import { salesOperationsService, SaleSummary } from '@/services/salesOperationsService';
 import { userService } from '@/services/userService';
 import { fuelTypeService } from '@/services/fuelTypeService';
 import { clientService } from '@/services/clientService';
 import { paymentMethodService } from '@/services/paymentMethodService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { SelectField } from '@/components/ui/SelectField';
@@ -15,7 +16,24 @@ import { exportToExcel, formatDateTime, formatCurrency, formatNumber } from '@/u
 export function SalesPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const stationId = user?.stationId || '';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const [selectedStationId, setSelectedStationId] = useState<string>(user?.stationId || '');
+
+  // Fetch stations for SUPER_ADMIN
+  const { data: stations = [] } = useQuery<Station[]>({
+    queryKey: ['stations'],
+    queryFn: stationService.getAll,
+    enabled: isSuperAdmin,
+  });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStationId && stations.length > 0) {
+      setSelectedStationId(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStationId, stations]);
+
+  const stationId = selectedStationId || user?.stationId || '';
 
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -65,18 +83,21 @@ export function SalesPage() {
   const handleExport = () => {
     exportToExcel(sales, 'ventes', [
       { key: 'saleTime', label: 'Date/Heure', format: (v) => formatDateTime(v as string) },
-      { key: 'pompiste', label: 'Pompiste', format: (_, item) => `${(item as SaleSummary).pompiste.firstName} ${(item as SaleSummary).pompiste.lastName}` },
+      { key: 'pompiste', label: 'Pompiste', format: (_, item) => {
+        const sale = item as SaleSummary;
+        return sale.pompiste ? `${sale.pompiste.firstName} ${sale.pompiste.lastName}` : '';
+      }},
       { key: 'fuelType.name', label: 'Carburant' },
-      { key: 'quantity', label: 'Litres', format: (v) => formatNumber(v as number) },
-      { key: 'unitPrice', label: 'PU', format: (v) => formatNumber(v as number, 2) },
-      { key: 'totalAmount', label: 'Total', format: (v) => formatCurrency(v as number) },
-      { key: 'payments', label: 'Paiement', format: (_, item) => (item as SaleSummary).payments.map(p => p.paymentMethod.name).join(', ') },
+      { key: 'quantity', label: 'Litres', format: (v) => formatNumber(Number(v)) },
+      { key: 'unitPrice', label: 'PU', format: (v) => formatNumber(Number(v), 2) },
+      { key: 'totalAmount', label: 'Total', format: (v) => formatCurrency(Number(v)) },
+      { key: 'payments', label: 'Paiement', format: (_, item) => (item as SaleSummary).payments?.map(p => p.paymentMethod?.name).join(', ') || '' },
       { key: 'client', label: 'Client', format: (_, item) => (item as SaleSummary).client?.companyName || (item as SaleSummary).client?.contactName || '' },
     ]);
   };
 
-  const totalLiters = sales.reduce((sum, s) => sum + s.quantity, 0);
-  const totalAmount = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const totalLiters = sales.reduce((sum, s) => sum + Number(s.quantity), 0);
+  const totalAmount = sales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
 
   const columns: Column<SaleSummary>[] = [
     {
@@ -88,7 +109,7 @@ export function SalesPage() {
     {
       key: 'pompiste',
       label: 'Pompiste',
-      render: (s) => `${s.pompiste.firstName} ${s.pompiste.lastName}`,
+      render: (s) => s.pompiste ? `${s.pompiste.firstName} ${s.pompiste.lastName}` : '-',
     },
     {
       key: 'fuelType',
@@ -97,9 +118,9 @@ export function SalesPage() {
         <div className="flex items-center gap-2">
           <span
             className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: s.fuelType.color }}
+            style={{ backgroundColor: s.fuelType?.color || '#6b7280' }}
           />
-          <span>{s.fuelType.name}</span>
+          <span>{s.fuelType?.name || '-'}</span>
         </div>
       ),
     },
@@ -107,27 +128,27 @@ export function SalesPage() {
       key: 'quantity',
       label: 'Litres',
       sortable: true,
-      render: (s) => `${formatNumber(s.quantity)} L`,
+      render: (s) => `${formatNumber(Number(s.quantity))} L`,
     },
     {
       key: 'unitPrice',
       label: 'PU',
-      render: (s) => `${formatNumber(s.unitPrice)} MAD`,
+      render: (s) => `${formatNumber(Number(s.unitPrice))} MAD`,
     },
     {
       key: 'totalAmount',
       label: 'Total',
       sortable: true,
-      render: (s) => <span className="font-medium">{formatCurrency(s.totalAmount)}</span>,
+      render: (s) => <span className="font-medium">{formatCurrency(Number(s.totalAmount))}</span>,
     },
     {
       key: 'payments',
       label: 'Paiement',
       render: (s) => (
         <div className="flex flex-wrap gap-1">
-          {s.payments.map((p, i) => (
+          {(s.payments || []).map((p, i) => (
             <span key={i} className="px-2 py-0.5 bg-secondary-100 text-secondary-700 rounded text-xs">
-              {p.paymentMethod.name}
+              {p.paymentMethod?.name || '-'}
             </span>
           ))}
         </div>
@@ -151,9 +172,30 @@ export function SalesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-secondary-900">Ventes</h1>
-          <p className="text-secondary-500">Historique des ventes</p>
+          <p className="text-secondary-500">
+            {isSuperAdmin && stations.length > 0
+              ? `Station: ${stations.find(s => s.id === stationId)?.name || 'Selectionnez une station'}`
+              : 'Historique des ventes'}
+          </p>
         </div>
         <div className="flex gap-2">
+          {/* Station selector for SUPER_ADMIN */}
+          {isSuperAdmin && stations.length > 0 && (
+            <div className="relative">
+              <select
+                value={selectedStationId}
+                onChange={(e) => setSelectedStationId(e.target.value)}
+                className="flex items-center gap-2 px-4 py-2 pr-8 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors text-sm font-medium text-secondary-700 appearance-none cursor-pointer"
+              >
+                {stations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+              <BuildingStorefrontIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary-500 pointer-events-none" />
+            </div>
+          )}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${

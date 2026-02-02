@@ -519,4 +519,70 @@ export class AuthService {
 
     return user;
   }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    if (!user.passwordHash) {
+      throw new BadRequestException('Ce compte n\'a pas de mot de passe configuré');
+    }
+
+    const isPasswordValid = await this.comparePasswords(
+      currentPassword,
+      user.passwordHash,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Mot de passe actuel incorrect');
+    }
+
+    const newPasswordHash = await this.hashPassword(newPassword);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    // Revoke all refresh tokens for security
+    await this.revokeAllUserTokens(userId);
+
+    return { message: 'Mot de passe modifié avec succès' };
+  }
+
+  async changePin(userId: string, newPin: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // Only POMPISTE and GESTIONNAIRE can have PIN
+    if (user.role === 'SUPER_ADMIN') {
+      throw new BadRequestException('Les super admins n\'utilisent pas de code PIN');
+    }
+
+    const newPinHash = await this.hashPinCode(newPin);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { pinCodeHash: newPinHash },
+    });
+
+    // Revoke all refresh tokens for security
+    await this.revokeAllUserTokens(userId);
+
+    return { message: 'Code PIN modifié avec succès' };
+  }
 }

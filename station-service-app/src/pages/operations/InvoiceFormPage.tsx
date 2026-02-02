@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
@@ -8,14 +8,15 @@ import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { invoiceService, CreateInvoiceDto } from '@/services/invoiceService';
 import { clientService } from '@/services/clientService';
 import { fuelTypeService } from '@/services/fuelTypeService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { FormField } from '@/components/ui/FormField';
 import { SelectField } from '@/components/ui/SelectField';
 import { formatCurrency } from '@/utils/exportExcel';
 
 const lineSchema = z.object({
-  fuelTypeId: z.string().optional(),
-  description: z.string().min(1, 'Description requise'),
+  fuelTypeId: z.string().min(1, 'Le type de carburant est requis'),
+  description: z.string().optional(),
   quantity: z.number().positive('Quantite positive'),
   unitPriceHT: z.number().positive('Prix positif'),
 });
@@ -36,7 +37,24 @@ export function InvoiceFormPage() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const stationId = user?.stationId || '';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const [selectedStationId, setSelectedStationId] = useState<string>(user?.stationId || '');
+
+  // Fetch stations for SUPER_ADMIN
+  const { data: stations = [] } = useQuery<Station[]>({
+    queryKey: ['stations'],
+    queryFn: stationService.getAll,
+    enabled: isSuperAdmin,
+  });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStationId && stations.length > 0) {
+      setSelectedStationId(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStationId, stations]);
+
+  const stationId = selectedStationId || user?.stationId || '';
 
   const preselectedClientId = searchParams.get('clientId') || '';
 
@@ -88,7 +106,7 @@ export function InvoiceFormPage() {
 
   const createMutation = useMutation({
     mutationFn: (data: { dto: CreateInvoiceDto; issue: boolean }) =>
-      invoiceService.create(stationId, { ...data.dto, issue: data.issue }),
+      invoiceService.create(stationId, data.dto, data.issue),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       navigate('/operations/factures');
@@ -98,13 +116,13 @@ export function InvoiceFormPage() {
   const onSubmit = (data: InvoiceFormData, issue: boolean = false) => {
     const dto: CreateInvoiceDto = {
       clientId: data.clientId || undefined,
-      type: data.type,
+      invoiceType: data.type,
       periodStart: data.periodStart || undefined,
       periodEnd: data.periodEnd || undefined,
       notes: data.notes || undefined,
       lines: data.lines.map((line) => ({
-        fuelTypeId: line.fuelTypeId || undefined,
-        description: line.description,
+        fuelTypeId: line.fuelTypeId,
+        description: line.description || undefined,
         quantity: line.quantity,
         unitPriceHT: line.unitPriceHT,
       })),
@@ -198,7 +216,7 @@ export function InvoiceFormPage() {
             <h2 className="text-lg font-semibold text-secondary-900">Lignes de facture</h2>
             <button
               type="button"
-              onClick={() => append({ fuelTypeId: '', description: '', quantity: 0, unitPriceHT: 0 })}
+              onClick={() => append({ fuelTypeId: fuelTypes[0]?.id || '', description: '', quantity: 0, unitPriceHT: 0 })}
               className="flex items-center gap-2 px-3 py-1.5 text-primary-600 border border-primary-300 rounded-lg hover:bg-primary-50 transition-colors"
             >
               <PlusIcon className="h-4 w-4" />
@@ -217,9 +235,11 @@ export function InvoiceFormPage() {
                       render={({ field }) => (
                         <SelectField
                           label="Carburant"
-                          options={[{ value: '', label: 'Autre' }, ...fuelTypeOptions]}
+                          options={fuelTypeOptions}
                           value={field.value || ''}
                           onChange={field.onChange}
+                          error={errors.lines?.[index]?.fuelTypeId?.message}
+                          required
                         />
                       )}
                     />
@@ -229,7 +249,6 @@ export function InvoiceFormPage() {
                       label="Description"
                       {...register(`lines.${index}.description`)}
                       error={errors.lines?.[index]?.description?.message}
-                      required
                     />
                   </div>
                   <div className="md:col-span-2">

@@ -8,6 +8,7 @@ import {
   ArrowPathIcon,
   CalendarIcon,
   ChevronDownIcon,
+  BuildingStorefrontIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/stores/authStore';
 import {
@@ -30,6 +31,7 @@ import {
   ActiveShift,
   RecentSale,
 } from '@/services/dashboardService';
+import { stationService, Station } from '@/services/stationService';
 
 type Period = 'today' | '7days' | '30days' | 'month';
 
@@ -45,8 +47,25 @@ export function DashboardPage() {
   const queryClient = useQueryClient();
   const [period, setPeriod] = useState<Period>('today');
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
+  const [selectedStationId, setSelectedStationId] = useState<string>(user?.stationId || '');
 
-  const stationId = user?.stationId || '';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
+  // Fetch stations for SUPER_ADMIN
+  const { data: stations = [] } = useQuery<Station[]>({
+    queryKey: ['stations'],
+    queryFn: stationService.getAll,
+    enabled: isSuperAdmin,
+  });
+
+  // Auto-select first station for SUPER_ADMIN if none selected
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStationId && stations.length > 0) {
+      setSelectedStationId(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStationId, stations]);
+
+  const stationId = selectedStationId || user?.stationId || '';
 
   // Daily summary query
   const { data: dailySummary, isLoading: loadingDaily } = useQuery<DailySummary>({
@@ -133,16 +152,55 @@ export function DashboardPage() {
 
   const isAnyLoading = loadingDaily || loadingMonthly || loadingStock || loadingAlerts || loadingDebts || loadingShifts || loadingSales;
 
+  // Show message if no station selected
+  if (!stationId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <BuildingStorefrontIcon className="h-16 w-16 text-secondary-300 mb-4" />
+        <h2 className="text-xl font-semibold text-secondary-700 mb-2">
+          {isSuperAdmin ? 'Aucune station disponible' : 'Station non configuree'}
+        </h2>
+        <p className="text-secondary-500 max-w-md">
+          {isSuperAdmin
+            ? 'Veuillez creer une station pour commencer a utiliser le tableau de bord.'
+            : 'Votre compte n\'est associe a aucune station. Contactez l\'administrateur.'}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-secondary-900">Tableau de bord</h1>
-          <p className="text-secondary-500">Vue d'ensemble de votre station</p>
+          <p className="text-secondary-500">
+            {isSuperAdmin && stations.length > 0
+              ? `Station: ${stations.find(s => s.id === stationId)?.name || 'Selectionnez une station'}`
+              : 'Vue d\'ensemble de votre station'}
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Station selector for SUPER_ADMIN */}
+          {isSuperAdmin && stations.length > 0 && (
+            <div className="relative">
+              <select
+                value={selectedStationId}
+                onChange={(e) => setSelectedStationId(e.target.value)}
+                className="flex items-center gap-2 px-4 py-2 pr-8 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors text-sm font-medium text-secondary-700 appearance-none cursor-pointer"
+              >
+                {stations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+              <BuildingStorefrontIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary-500 pointer-events-none" />
+            </div>
+          )}
+
           {/* Period selector */}
           <div className="relative">
             <button

@@ -86,4 +86,37 @@ export const userService = {
     }
     return code;
   },
+
+  async getGestionnaires(stationId?: string): Promise<User[]> {
+    const params: { stationId?: string; role: UserRole } = { role: 'GESTIONNAIRE' };
+    if (stationId) params.stationId = stationId;
+    const response = await axiosInstance.get('/users', { params });
+    return response.data;
+  },
+
+  async getActivePompistes(stationId: string): Promise<User[]> {
+    const response = await axiosInstance.get('/users', {
+      params: { stationId, role: 'POMPISTE', isActive: true },
+    });
+    return response.data;
+  },
+
+  async checkBadgeCodeAvailable(badgeCode: string): Promise<boolean> {
+    // Backend doesn't have this endpoint - check by fetching all users
+    // This is not optimal but works for now
+    try {
+      const users = await userService.getAll();
+      return !users.some(u => u.badgeCode === badgeCode);
+    } catch {
+      return true; // Assume available if we can't check
+    }
+  },
+
+  async updatePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
+    await axiosInstance.post('/auth/change-password', data);
+  },
+
+  async updatePin(newPin: string): Promise<void> {
+    await axiosInstance.post('/auth/change-pin', { newPin });
+  },
 };

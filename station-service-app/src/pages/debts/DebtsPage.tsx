@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -9,9 +9,11 @@ import {
   BanknotesIcon,
   UsersIcon,
   ChartBarIcon,
+  BuildingStorefrontIcon,
 } from '@heroicons/react/24/outline';
 import { debtService, PompisteDebt, DebtStatus, DebtReason } from '@/services/debtService';
 import { userService } from '@/services/userService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { SelectField } from '@/components/ui/SelectField';
@@ -24,7 +26,24 @@ type ViewMode = 'list' | 'grouped';
 export function DebtsPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const stationId = user?.stationId || '';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const [selectedStationId, setSelectedStationId] = useState<string>(user?.stationId || '');
+
+  // Fetch stations for SUPER_ADMIN
+  const { data: stations = [] } = useQuery<Station[]>({
+    queryKey: ['stations'],
+    queryFn: stationService.getAll,
+    enabled: isSuperAdmin,
+  });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStationId && stations.length > 0) {
+      setSelectedStationId(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStationId, stations]);
+
+  const stationId = selectedStationId || user?.stationId || '';
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showFilters, setShowFilters] = useState(false);
@@ -83,14 +102,14 @@ export function DebtsPage() {
     {
       key: 'initialAmount',
       label: 'Initial',
-      render: (d) => formatCurrency(d.initialAmount),
+      render: (d) => formatCurrency(Number(d.initialAmount)),
     },
     {
       key: 'remainingAmount',
       label: 'Reste du',
       render: (d) => (
-        <span className={d.remainingAmount > 0 ? 'text-danger-600 font-medium' : 'text-success-600'}>
-          {formatCurrency(d.remainingAmount)}
+        <span className={Number(d.remainingAmount) > 0 ? 'text-danger-600 font-medium' : 'text-success-600'}>
+          {formatCurrency(Number(d.remainingAmount))}
         </span>
       ),
     },
@@ -130,9 +149,30 @@ export function DebtsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-secondary-900">Dettes pompistes</h1>
-          <p className="text-secondary-500">Gestion des dettes et remboursements</p>
+          <p className="text-secondary-500">
+            {isSuperAdmin && stations.length > 0
+              ? `Station: ${stations.find(s => s.id === stationId)?.name || 'Selectionnez une station'}`
+              : 'Gestion des dettes et remboursements'}
+          </p>
         </div>
         <div className="flex gap-2">
+          {/* Station selector for SUPER_ADMIN */}
+          {isSuperAdmin && stations.length > 0 && (
+            <div className="relative">
+              <select
+                value={selectedStationId}
+                onChange={(e) => setSelectedStationId(e.target.value)}
+                className="flex items-center gap-2 px-4 py-2 pr-8 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors text-sm font-medium text-secondary-700 appearance-none cursor-pointer"
+              >
+                {stations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+              <BuildingStorefrontIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary-500 pointer-events-none" />
+            </div>
+          )}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
@@ -164,7 +204,7 @@ export function DebtsPage() {
               </div>
               <div>
                 <p className="text-sm text-secondary-500">Total dettes en cours</p>
-                <p className="text-xl font-bold text-danger-600">{formatCurrency(overview.totalDebt)}</p>
+                <p className="text-xl font-bold text-danger-600">{formatCurrency(Number(overview.totalDebt))}</p>
               </div>
             </div>
           </div>
@@ -186,7 +226,7 @@ export function DebtsPage() {
               </div>
               <div>
                 <p className="text-sm text-secondary-500">Dette moyenne</p>
-                <p className="text-xl font-bold text-secondary-900">{formatCurrency(overview.averageDebt)}</p>
+                <p className="text-xl font-bold text-secondary-900">{formatCurrency(Number(overview.averageDebt))}</p>
               </div>
             </div>
           </div>

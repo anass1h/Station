@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Alert, AlertPriority, AlertStatus, AlertType } from '@prisma/client';
 import { PrismaService } from '../prisma/index.js';
@@ -100,47 +101,75 @@ export class AlertService {
   async acknowledge(id: string, userId: string): Promise<Alert> {
     await this.findOne(id);
 
-    const alert = await this.prisma.alert.update({
-      where: { id },
-      data: {
-        status: AlertStatus.ACKNOWLEDGED,
-        acknowledgedByUserId: userId,
-        acknowledgedAt: new Date(),
-      },
-      include: {
-        station: true,
-        acknowledgedBy: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-      },
+    // Verify user exists before updating
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
     });
 
-    this.logger.log(`Alerte acquittée: ${alert.title} par utilisateur ${userId}`);
+    if (!user) {
+      throw new BadRequestException(`Utilisateur avec l'ID ${userId} non trouvé`);
+    }
 
-    return alert;
+    try {
+      const alert = await this.prisma.alert.update({
+        where: { id },
+        data: {
+          status: AlertStatus.ACKNOWLEDGED,
+          acknowledgedByUserId: userId,
+          acknowledgedAt: new Date(),
+        },
+        include: {
+          station: true,
+          acknowledgedBy: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+        },
+      });
+
+      this.logger.log(`Alerte acquittée: ${alert.title} par utilisateur ${userId}`);
+
+      return alert;
+    } catch (error) {
+      this.logger.error(`Erreur lors de l'acquittement de l'alerte ${id}: ${error}`);
+      throw new BadRequestException(`Impossible d'acquitter l'alerte: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    }
   }
 
   async resolve(id: string, userId: string): Promise<Alert> {
     await this.findOne(id);
 
-    const alert = await this.prisma.alert.update({
-      where: { id },
-      data: {
-        status: AlertStatus.RESOLVED,
-        resolvedByUserId: userId,
-        resolvedAt: new Date(),
-      },
-      include: {
-        station: true,
-        resolvedBy: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-      },
+    // Verify user exists before updating
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
     });
 
-    this.logger.log(`Alerte résolue: ${alert.title} par utilisateur ${userId}`);
+    if (!user) {
+      throw new BadRequestException(`Utilisateur avec l'ID ${userId} non trouvé`);
+    }
 
-    return alert;
+    try {
+      const alert = await this.prisma.alert.update({
+        where: { id },
+        data: {
+          status: AlertStatus.RESOLVED,
+          resolvedByUserId: userId,
+          resolvedAt: new Date(),
+        },
+        include: {
+          station: true,
+          resolvedBy: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+        },
+      });
+
+      this.logger.log(`Alerte résolue: ${alert.title} par utilisateur ${userId}`);
+
+      return alert;
+    } catch (error) {
+      this.logger.error(`Erreur lors de la résolution de l'alerte ${id}: ${error}`);
+      throw new BadRequestException(`Impossible de résoudre l'alerte: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    }
   }
 
   async ignore(id: string): Promise<Alert> {

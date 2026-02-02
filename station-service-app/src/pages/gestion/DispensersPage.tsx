@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { dispenserService, Dispenser } from '@/services/dispenserService';
-import { stationService } from '@/services/stationService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { DataTable, Column, TableAction } from '@/components/ui/DataTable';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -24,11 +24,18 @@ export function DispensersPage() {
     dispenser: null,
   });
 
-  const { data: stations = [] } = useQuery({
+  const { data: stations = [] } = useQuery<Station[]>({
     queryKey: ['stations'],
     queryFn: stationService.getAll,
     enabled: isSuperAdmin,
   });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStation && stations.length > 0) {
+      setSelectedStation(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStation, stations]);
 
   const { data: dispensers = [], isLoading } = useQuery({
     queryKey: ['dispensers', selectedStation],

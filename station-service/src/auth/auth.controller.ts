@@ -16,6 +16,8 @@ import {
   AuthResponseDto,
   AuthUserDto,
   RefreshTokenDto,
+  ChangePasswordDto,
+  ChangePinDto,
 } from './dto';
 import { JwtAuthGuard } from './guards';
 import { CurrentUser } from './decorators';
@@ -169,5 +171,42 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Profil utilisateur' })
   async getMe(@CurrentUser() user: AuthenticatedUser): Promise<AuthUserDto> {
     return this.authService.getUserProfile(user.id);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Changer le mot de passe',
+    description: 'Permet à l\'utilisateur de changer son mot de passe. Révoque tous les tokens.',
+  })
+  @ApiResponse({ status: 200, description: 'Mot de passe modifié avec succès' })
+  @ApiResponse({ status: 400, description: 'Mot de passe invalide ou compte sans mot de passe' })
+  @ApiResponse({ status: 401, description: 'Mot de passe actuel incorrect' })
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.changePassword(
+      user.id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+  }
+
+  @Post('change-pin')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Changer le code PIN',
+    description: 'Permet à l\'utilisateur (POMPISTE/GESTIONNAIRE) de changer son code PIN. Révoque tous les tokens.',
+  })
+  @ApiResponse({ status: 200, description: 'Code PIN modifié avec succès' })
+  @ApiResponse({ status: 400, description: 'PIN invalide ou utilisateur non autorisé' })
+  async changePin(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangePinDto,
+  ): Promise<{ message: string }> {
+    return this.authService.changePin(user.id, dto.newPin);
   }
 }

@@ -42,8 +42,10 @@ export const supplierService = {
     return response.data;
   },
 
-  async getByStation(stationId: string): Promise<Supplier[]> {
-    const response = await axiosInstance.get(`/suppliers/station/${stationId}`);
+  async getByStation(_stationId: string): Promise<Supplier[]> {
+    // Backend doesn't have station-specific endpoint, use getAll
+    // Suppliers are global in this implementation
+    const response = await axiosInstance.get('/suppliers');
     return response.data;
   },
 

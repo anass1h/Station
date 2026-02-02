@@ -61,8 +61,13 @@ export const salesOperationsService = {
     clientId?: string;
     paymentMethodId?: string;
   }): Promise<SaleSummary[]> {
-    const response = await axiosInstance.get('/sales', {
-      params: { stationId, ...filters },
+    const response = await axiosInstance.get(`/sales/by-station/${stationId}`, {
+      params: {
+        from: filters?.startDate,
+        to: filters?.endDate,
+        fuelTypeId: filters?.fuelTypeId,
+        clientId: filters?.clientId,
+      },
     });
     return response.data;
   },
@@ -96,9 +101,48 @@ export const salesOperationsService = {
       count: number;
     }[];
   }> {
-    const response = await axiosInstance.get('/sales/stats', {
-      params: { stationId, ...filters },
-    });
-    return response.data;
+    // Get sales and calculate stats client-side since no stats endpoint exists
+    const sales = await this.getSales(stationId, filters);
+
+    const byFuelTypeMap = new Map<string, { name: string; liters: number; amount: number }>();
+    const byPaymentMethodMap = new Map<string, { name: string; amount: number; count: number }>();
+
+    let totalLiters = 0;
+    let totalAmount = 0;
+
+    for (const sale of sales) {
+      totalLiters += sale.quantity;
+      totalAmount += sale.totalAmount;
+
+      // By fuel type
+      const fuelKey = sale.fuelType.id;
+      const existing = byFuelTypeMap.get(fuelKey) || { name: sale.fuelType.name, liters: 0, amount: 0 };
+      existing.liters += sale.quantity;
+      existing.amount += sale.totalAmount;
+      byFuelTypeMap.set(fuelKey, existing);
+
+      // By payment method
+      for (const payment of sale.payments) {
+        const methodKey = payment.paymentMethod.id;
+        const existingMethod = byPaymentMethodMap.get(methodKey) || { name: payment.paymentMethod.name, amount: 0, count: 0 };
+        existingMethod.amount += payment.amount;
+        existingMethod.count += 1;
+        byPaymentMethodMap.set(methodKey, existingMethod);
+      }
+    }
+
+    return {
+      totalLiters,
+      totalAmount,
+      salesCount: sales.length,
+      byFuelType: Array.from(byFuelTypeMap.entries()).map(([fuelTypeId, data]) => ({
+        fuelTypeId,
+        ...data,
+      })),
+      byPaymentMethod: Array.from(byPaymentMethodMap.entries()).map(([paymentMethodId, data]) => ({
+        paymentMethodId,
+        ...data,
+      })),
+    };
   },
 };

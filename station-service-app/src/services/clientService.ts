@@ -101,18 +101,90 @@ export const clientService = {
     await axiosInstance.delete(`/clients/${id}`);
   },
 
-  async getPurchaseHistory(clientId: string, filters?: {
+  async getPurchaseHistory(clientId: string, _filters?: {
     startDate?: string;
     endDate?: string;
   }): Promise<ClientPurchase[]> {
-    const response = await axiosInstance.get(`/clients/${clientId}/purchases`, {
-      params: filters,
+    // Endpoint not implemented in backend - use sales by client
+    try {
+      const response = await axiosInstance.get(`/sales/by-client/${clientId}`);
+      return response.data.map((sale: {
+        id: string;
+        quantity: number;
+        unitPrice: number;
+        totalAmount: number;
+        fuelType?: { name: string };
+        soldAt: string;
+        shiftId: string;
+      }) => ({
+        id: sale.id,
+        saleId: sale.id,
+        quantity: sale.quantity,
+        unitPrice: sale.unitPrice,
+        totalAmount: sale.totalAmount,
+        fuelType: sale.fuelType?.name || 'N/A',
+        soldAt: sale.soldAt,
+        shiftId: sale.shiftId,
+      }));
+    } catch {
+      return [];
+    }
+  },
+
+  async getPaymentHistory(clientId: string): Promise<ClientPayment[]> {
+    // Endpoint not implemented - get from invoices
+    try {
+      const response = await axiosInstance.get(`/invoices/by-client/${clientId}`);
+      const payments: ClientPayment[] = [];
+      for (const invoice of response.data) {
+        if (invoice.payments) {
+          for (const payment of invoice.payments) {
+            payments.push({
+              id: payment.id,
+              invoiceId: invoice.id,
+              invoiceNumber: invoice.invoiceNumber,
+              amount: payment.amount,
+              paymentMethod: payment.paymentMethod?.name || 'N/A',
+              reference: payment.reference,
+              paymentDate: payment.paymentDate,
+            });
+          }
+        }
+      }
+      return payments;
+    } catch {
+      return [];
+    }
+  },
+
+  async getBalance(clientId: string): Promise<{
+    creditLimit: number;
+    currentBalance: number;
+    availableCredit: number;
+  }> {
+    // Get client data and calculate balance
+    try {
+      const client = await clientService.getById(clientId);
+      return {
+        creditLimit: client.creditLimit,
+        currentBalance: client.currentBalance,
+        availableCredit: client.creditLimit - client.currentBalance,
+      };
+    } catch {
+      return { creditLimit: 0, currentBalance: 0, availableCredit: 0 };
+    }
+  },
+
+  async getB2BClients(stationId: string): Promise<Client[]> {
+    const response = await axiosInstance.get('/clients', {
+      params: { stationId, clientType: 'B2B' },
     });
     return response.data;
   },
 
-  async getPaymentHistory(clientId: string): Promise<ClientPayment[]> {
-    const response = await axiosInstance.get(`/clients/${clientId}/payments`);
-    return response.data;
+  async getClientsWithCredit(stationId: string): Promise<Client[]> {
+    // Filter clients with credit locally
+    const clients = await clientService.getAll(stationId);
+    return clients.filter(c => c.creditLimit > 0 && c.isActive);
   },
 };

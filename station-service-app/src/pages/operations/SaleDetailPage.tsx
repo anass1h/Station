@@ -101,7 +101,7 @@ export function SaleDetailPage() {
             </div>
             <div>
               <p className="text-sm text-secondary-500">Montant total</p>
-              <p className="font-semibold text-success-600">{formatCurrency(sale.totalAmount)}</p>
+              <p className="font-semibold text-success-600">{formatCurrency(Number(sale.totalAmount))}</p>
             </div>
           </div>
         </div>
@@ -113,19 +113,19 @@ export function SaleDetailPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="text-center p-4 bg-secondary-50 rounded-lg">
             <p className="text-sm text-secondary-500 mb-1">Quantite</p>
-            <p className="text-2xl font-bold text-secondary-900">{formatNumber(sale.quantity)} L</p>
+            <p className="text-2xl font-bold text-secondary-900">{formatNumber(Number(sale.quantity))} L</p>
           </div>
           <div className="text-center p-4 bg-secondary-50 rounded-lg">
             <p className="text-sm text-secondary-500 mb-1">Prix unitaire</p>
-            <p className="text-2xl font-bold text-secondary-900">{formatNumber(sale.unitPrice)} MAD/L</p>
+            <p className="text-2xl font-bold text-secondary-900">{formatNumber(Number(sale.unitPrice))} MAD/L</p>
           </div>
           <div className="text-center p-4 bg-secondary-50 rounded-lg">
             <p className="text-sm text-secondary-500 mb-1">Index avant</p>
-            <p className="text-2xl font-bold text-secondary-900">{formatNumber(sale.indexBefore)} L</p>
+            <p className="text-2xl font-bold text-secondary-900">{formatNumber(Number(sale.indexBefore))} L</p>
           </div>
           <div className="text-center p-4 bg-secondary-50 rounded-lg">
             <p className="text-sm text-secondary-500 mb-1">Index apres</p>
-            <p className="text-2xl font-bold text-secondary-900">{formatNumber(sale.indexAfter)} L</p>
+            <p className="text-2xl font-bold text-secondary-900">{formatNumber(Number(sale.indexAfter))} L</p>
           </div>
         </div>
       </div>
@@ -147,7 +147,7 @@ export function SaleDetailPage() {
                   <span className="text-sm text-secondary-500">Ref: {payment.reference}</span>
                 )}
               </div>
-              <span className="font-semibold text-secondary-900">{formatCurrency(payment.amount)}</span>
+              <span className="font-semibold text-secondary-900">{formatCurrency(Number(payment.amount))}</span>
             </div>
           ))}
         </div>

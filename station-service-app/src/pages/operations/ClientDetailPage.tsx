@@ -65,8 +65,8 @@ export function ClientDetailPage() {
     );
   }
 
-  const creditUsagePercent = client.creditLimit > 0
-    ? (client.currentBalance / client.creditLimit) * 100
+  const creditUsagePercent = Number(client.creditLimit) > 0
+    ? (Number(client.currentBalance) / Number(client.creditLimit)) * 100
     : 0;
 
   const getCreditColor = () => {
@@ -204,15 +204,15 @@ export function ClientDetailPage() {
                 <div className="text-center p-3 bg-secondary-50 rounded-lg">
                   <p className="text-sm text-secondary-500">Solde actuel</p>
                   <p className={`text-xl font-bold ${
-                    client.currentBalance > 0 ? 'text-danger-600' : 'text-success-600'
+                    Number(client.currentBalance) > 0 ? 'text-danger-600' : 'text-success-600'
                   }`}>
-                    {formatCurrency(client.currentBalance)}
+                    {formatCurrency(Number(client.currentBalance))}
                   </p>
                 </div>
                 <div className="text-center p-3 bg-secondary-50 rounded-lg">
                   <p className="text-sm text-secondary-500">Plafond</p>
                   <p className="text-xl font-bold text-secondary-900">
-                    {formatCurrency(client.creditLimit)}
+                    {formatCurrency(Number(client.creditLimit))}
                   </p>
                 </div>
               </div>
@@ -234,15 +234,15 @@ export function ClientDetailPage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-secondary-600">Total achats</span>
-              <span className="font-semibold">{formatCurrency(client.totalPurchases || 0)}</span>
+              <span className="font-semibold">{formatCurrency(Number(client.totalPurchases || 0))}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-secondary-600">Total facture</span>
-              <span className="font-semibold">{formatCurrency(client.totalInvoiced || 0)}</span>
+              <span className="font-semibold">{formatCurrency(Number(client.totalInvoiced || 0))}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-secondary-600">Total paye</span>
-              <span className="font-semibold text-success-600">{formatCurrency(client.totalPaid || 0)}</span>
+              <span className="font-semibold text-success-600">{formatCurrency(Number(client.totalPaid || 0))}</span>
             </div>
           </div>
         </div>
@@ -274,8 +274,8 @@ export function ClientDetailPage() {
               columns={[
                 { key: 'saleTime', label: 'Date', render: (p: any) => formatDateTime(p.saleTime) },
                 { key: 'fuelType', label: 'Carburant', render: (p: any) => p.fuelType?.name || '-' },
-                { key: 'quantity', label: 'Litres', render: (p: any) => `${p.quantity} L` },
-                { key: 'totalAmount', label: 'Montant', render: (p: any) => formatCurrency(p.totalAmount) },
+                { key: 'quantity', label: 'Litres', render: (p: any) => `${Number(p.quantity)} L` },
+                { key: 'totalAmount', label: 'Montant', render: (p: any) => formatCurrency(Number(p.totalAmount)) },
               ]}
               data={purchases as any[]}
               loading={false}
@@ -290,8 +290,8 @@ export function ClientDetailPage() {
               columns={[
                 { key: 'invoiceNumber', label: 'N° Facture' },
                 { key: 'issuedAt', label: 'Date', render: (i: any) => i.issuedAt ? formatDate(i.issuedAt) : '-' },
-                { key: 'totalTTC', label: 'Montant TTC', render: (i: any) => formatCurrency(i.totalTTC) },
-                { key: 'paidAmount', label: 'Paye', render: (i: any) => formatCurrency(i.paidAmount) },
+                { key: 'totalTTC', label: 'Montant TTC', render: (i: any) => formatCurrency(Number(i.totalTTC)) },
+                { key: 'paidAmount', label: 'Paye', render: (i: any) => formatCurrency(Number(i.paidAmount)) },
                 { key: 'status', label: 'Statut', render: (i: any) => <StatusBadge label={i.status} variant="info" /> },
               ]}
               data={invoices as any[]}
@@ -308,7 +308,7 @@ export function ClientDetailPage() {
               columns={[
                 { key: 'paymentDate', label: 'Date', render: (p: any) => formatDate(p.paymentDate) },
                 { key: 'invoiceNumber', label: 'Facture', render: (p: any) => p.invoice?.invoiceNumber || '-' },
-                { key: 'amount', label: 'Montant', render: (p: any) => formatCurrency(p.amount) },
+                { key: 'amount', label: 'Montant', render: (p: any) => formatCurrency(Number(p.amount)) },
                 { key: 'paymentMethod', label: 'Moyen', render: (p: any) => p.paymentMethod?.name || '-' },
               ]}
               data={payments as any[]}

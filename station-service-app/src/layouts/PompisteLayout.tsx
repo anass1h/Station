@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from 'react-router-dom';
-import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import { ArrowRightOnRectangleIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/stores/authStore';
 
 export function PompisteLayout() {
@@ -28,14 +28,20 @@ export function PompisteLayout() {
           </div>
         </div>
 
-        {/* User info & logout */}
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="font-medium text-secondary-900">
-              {user?.firstName} {user?.lastName}
-            </p>
-            <p className="text-xs text-secondary-500">Pompiste</p>
-          </div>
+        {/* User info & actions */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/pompiste/profil')}
+            className="flex items-center gap-2 px-3 py-2 hover:bg-secondary-100 rounded-xl transition-colors"
+          >
+            <div className="text-right hidden sm:block">
+              <p className="font-medium text-secondary-900 text-sm">
+                {user?.firstName} {user?.lastName}
+              </p>
+              <p className="text-xs text-secondary-500">Pompiste</p>
+            </div>
+            <UserCircleIcon className="h-8 w-8 text-secondary-400" />
+          </button>
           <button
             onClick={handleLogout}
             className="p-3 bg-secondary-100 hover:bg-secondary-200 rounded-xl transition-colors"

@@ -70,15 +70,20 @@ export function NewSalePage() {
   const handleSubmit = async (data: { quantity: number; payments: PaymentEntry[] }) => {
     if (!shift || !shift.nozzle) return;
 
+    const fuelTypeId = shift.nozzle.tank?.fuelType?.id;
+    if (!fuelTypeId) {
+      setError('Type de carburant non disponible');
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
     try {
       await saleService.createSale({
         shiftId: shift.id,
-        fuelTypeId: shift.nozzle.tank?.fuelType?.id || '',
+        fuelTypeId,
         quantity: data.quantity,
-        unitPrice: unitPrice,
         payments: data.payments.map(p => ({
           paymentMethodId: p.methodId,
           amount: p.amount,

@@ -1,12 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeftIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, InformationCircleIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 import { priceService, CreatePriceDto } from '@/services/priceService';
 import { fuelTypeService } from '@/services/fuelTypeService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { FormField } from '@/components/ui/FormField';
 import { SelectField } from '@/components/ui/SelectField';
@@ -27,8 +28,24 @@ export function PriceFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const [selectedStationId, setSelectedStationId] = useState<string>(user?.stationId || '');
 
-  const stationId = user?.stationId || '';
+  // Fetch stations for SUPER_ADMIN
+  const { data: stations = [] } = useQuery<Station[]>({
+    queryKey: ['stations'],
+    queryFn: stationService.getAll,
+    enabled: isSuperAdmin,
+  });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStationId && stations.length > 0) {
+      setSelectedStationId(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStationId, stations]);
+
+  const stationId = selectedStationId || user?.stationId || '';
 
   const { data: fuelTypes = [], isLoading: loadingFuelTypes } = useQuery({
     queryKey: ['fuelTypes'],
@@ -67,8 +84,8 @@ export function PriceFormPage() {
     if (selectedFuelTypeId) {
       const currentPrice = currentPrices.find((p) => p.fuelTypeId === selectedFuelTypeId);
       if (currentPrice) {
-        setValue('sellingPriceTTC', currentPrice.sellingPriceTTC);
-        setValue('purchasePrice', currentPrice.purchasePrice);
+        setValue('sellingPriceTTC', Number(currentPrice.sellingPriceTTC));
+        setValue('purchasePrice', Number(currentPrice.purchasePrice));
       }
     }
   }, [selectedFuelTypeId, currentPrices, setValue]);
@@ -109,17 +126,40 @@ export function PriceFormPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate('/gestion/prix')}
-          className="p-2 hover:bg-secondary-100 rounded-lg transition-colors"
-        >
-          <ArrowLeftIcon className="h-5 w-5 text-secondary-600" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-secondary-900">Modifier le prix</h1>
-          <p className="text-secondary-500">Definissez un nouveau prix pour un carburant</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/gestion/prix')}
+            className="p-2 hover:bg-secondary-100 rounded-lg transition-colors"
+          >
+            <ArrowLeftIcon className="h-5 w-5 text-secondary-600" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-secondary-900">Modifier le prix</h1>
+            <p className="text-secondary-500">
+              {isSuperAdmin && stations.length > 0
+                ? `Station: ${stations.find(s => s.id === stationId)?.name || 'Selectionnez une station'}`
+                : 'Definissez un nouveau prix pour un carburant'}
+            </p>
+          </div>
         </div>
+        {/* Station selector for SUPER_ADMIN */}
+        {isSuperAdmin && stations.length > 0 && (
+          <div className="relative">
+            <select
+              value={selectedStationId}
+              onChange={(e) => setSelectedStationId(e.target.value)}
+              className="flex items-center gap-2 px-4 py-2 pr-8 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors text-sm font-medium text-secondary-700 appearance-none cursor-pointer"
+            >
+              {stations.map((station) => (
+                <option key={station.id} value={station.id}>
+                  {station.name}
+                </option>
+              ))}
+            </select>
+            <BuildingStorefrontIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary-500 pointer-events-none" />
+          </div>
+        )}
       </div>
 
       {/* Info Banner */}

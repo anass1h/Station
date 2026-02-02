@@ -139,8 +139,30 @@ export const debtService = {
   },
 
   async getDebtsGroupedByPompiste(stationId: string): Promise<DebtsByPompiste[]> {
-    const response = await axiosInstance.get(`/pompiste-debts/by-pompiste/${stationId}`);
-    return response.data;
+    // Backend doesn't have this endpoint - group client-side
+    const debts = await debtService.getDebts(stationId);
+    const groupedMap = new Map<string, DebtsByPompiste>();
+
+    for (const debt of debts) {
+      if (!debt.pompiste) continue;
+
+      const existing = groupedMap.get(debt.pompisteId);
+      if (existing) {
+        existing.totalDebt += debt.remainingAmount;
+        existing.debtsCount++;
+        existing.debts.push(debt);
+      } else {
+        groupedMap.set(debt.pompisteId, {
+          pompisteId: debt.pompisteId,
+          pompiste: debt.pompiste,
+          totalDebt: debt.remainingAmount,
+          debtsCount: 1,
+          debts: [debt],
+        });
+      }
+    }
+
+    return Array.from(groupedMap.values());
   },
 
   getReasonLabel(reason: DebtReason): string {
@@ -162,5 +184,10 @@ export const debtService = {
       CANCELLED: { label: 'Annulée', variant: 'secondary' },
     };
     return config[status];
+  },
+
+  async getTotal(pompisteId: string): Promise<{ totalDebt: number; count: number }> {
+    const response = await axiosInstance.get(`/pompiste-debts/total/${pompisteId}`);
+    return response.data;
   },
 };

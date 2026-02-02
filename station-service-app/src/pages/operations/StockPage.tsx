@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { AdjustmentsHorizontalIcon, TruckIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { AdjustmentsHorizontalIcon, TruckIcon, ChartBarIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 import { stockService, TankWithStats } from '@/services/stockService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { formatNumber, formatDate } from '@/utils/exportExcel';
@@ -9,7 +11,24 @@ import { formatNumber, formatDate } from '@/utils/exportExcel';
 export function StockPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const stationId = user?.stationId || '';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const [selectedStationId, setSelectedStationId] = useState<string>(user?.stationId || '');
+
+  // Fetch stations for SUPER_ADMIN
+  const { data: stations = [] } = useQuery<Station[]>({
+    queryKey: ['stations'],
+    queryFn: stationService.getAll,
+    enabled: isSuperAdmin,
+  });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStationId && stations.length > 0) {
+      setSelectedStationId(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStationId, stations]);
+
+  const stationId = selectedStationId || user?.stationId || '';
 
   const { data: tanks = [], isLoading } = useQuery({
     queryKey: ['tanksWithStats', stationId],
@@ -26,8 +45,8 @@ export function StockPage() {
   }
 
   const getLevelColor = (tank: TankWithStats) => {
-    const percentage = (tank.currentLevel / tank.capacity) * 100;
-    if (percentage <= tank.alertThreshold) return 'danger';
+    const percentage = (Number(tank.currentLevel) / Number(tank.capacity)) * 100;
+    if (percentage <= Number(tank.alertThreshold)) return 'danger';
     if (percentage <= 30) return 'warning';
     return 'success';
   };
@@ -44,14 +63,35 @@ export function StockPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-secondary-900">Etat du stock</h1>
-          <p className="text-secondary-500">Vue d'ensemble des cuves et niveaux</p>
+          <p className="text-secondary-500">
+            {isSuperAdmin && stations.length > 0
+              ? `Station: ${stations.find(s => s.id === stationId)?.name || 'Selectionnez une station'}`
+              : 'Vue d\'ensemble des cuves et niveaux'}
+          </p>
         </div>
+        {/* Station selector for SUPER_ADMIN */}
+        {isSuperAdmin && stations.length > 0 && (
+          <div className="relative">
+            <select
+              value={selectedStationId}
+              onChange={(e) => setSelectedStationId(e.target.value)}
+              className="flex items-center gap-2 px-4 py-2 pr-8 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors text-sm font-medium text-secondary-700 appearance-none cursor-pointer"
+            >
+              {stations.map((station) => (
+                <option key={station.id} value={station.id}>
+                  {station.name}
+                </option>
+              ))}
+            </select>
+            <BuildingStorefrontIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary-500 pointer-events-none" />
+          </div>
+        )}
       </div>
 
       {/* Tanks Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tanks.map((tank) => {
-          const percentage = (tank.currentLevel / tank.capacity) * 100;
+          const percentage = (Number(tank.currentLevel) / Number(tank.capacity)) * 100;
           const levelColor = getLevelColor(tank);
           const colors = colorClasses[levelColor];
 

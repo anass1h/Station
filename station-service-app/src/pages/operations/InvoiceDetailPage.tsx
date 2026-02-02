@@ -107,7 +107,7 @@ export function InvoiceDetailPage() {
     );
   }
 
-  const remainingAmount = invoice.totalTTC - invoice.paidAmount;
+  const remainingAmount = Number(invoice.totalTTC) - Number(invoice.paidAmount);
   const config = statusConfig[invoice.status];
 
   const lineColumns: Column<InvoiceLine>[] = [
@@ -123,17 +123,17 @@ export function InvoiceDetailPage() {
     {
       key: 'quantity',
       label: 'Quantite',
-      render: (l) => l.quantity.toFixed(2),
+      render: (l) => Number(l.quantity).toFixed(2),
     },
     {
       key: 'unitPriceHT',
       label: 'PU HT',
-      render: (l) => formatCurrency(l.unitPriceHT),
+      render: (l) => formatCurrency(Number(l.unitPriceHT)),
     },
     {
       key: 'totalHT',
       label: 'Total HT',
-      render: (l) => formatCurrency(l.totalHT),
+      render: (l) => formatCurrency(Number(l.totalHT)),
     },
   ];
 
@@ -156,7 +156,7 @@ export function InvoiceDetailPage() {
     {
       key: 'amount',
       label: 'Montant',
-      render: (p) => <span className="font-medium text-success-600">{formatCurrency(p.amount)}</span>,
+      render: (p) => <span className="font-medium text-success-600">{formatCurrency(Number(p.amount))}</span>,
     },
   ];
 
@@ -291,19 +291,19 @@ export function InvoiceDetailPage() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="text-center p-3 bg-secondary-50 rounded-lg">
               <p className="text-sm text-secondary-500">Total HT</p>
-              <p className="text-xl font-bold">{formatCurrency(invoice.totalHT)}</p>
+              <p className="text-xl font-bold">{formatCurrency(Number(invoice.totalHT))}</p>
             </div>
             <div className="text-center p-3 bg-secondary-50 rounded-lg">
               <p className="text-sm text-secondary-500">TVA</p>
-              <p className="text-xl font-bold">{formatCurrency(invoice.tvaAmount)}</p>
+              <p className="text-xl font-bold">{formatCurrency(Number(invoice.tvaAmount))}</p>
             </div>
             <div className="text-center p-3 bg-primary-50 rounded-lg">
               <p className="text-sm text-primary-600">Total TTC</p>
-              <p className="text-xl font-bold text-primary-700">{formatCurrency(invoice.totalTTC)}</p>
+              <p className="text-xl font-bold text-primary-700">{formatCurrency(Number(invoice.totalTTC))}</p>
             </div>
             <div className="text-center p-3 bg-success-50 rounded-lg">
               <p className="text-sm text-success-600">Paye</p>
-              <p className="text-xl font-bold text-success-700">{formatCurrency(invoice.paidAmount)}</p>
+              <p className="text-xl font-bold text-success-700">{formatCurrency(Number(invoice.paidAmount))}</p>
             </div>
             <div className="text-center p-3 bg-warning-50 rounded-lg">
               <p className="text-sm text-warning-600">Reste</p>

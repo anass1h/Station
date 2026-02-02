@@ -10,6 +10,7 @@ import {
   CheckIcon,
   EyeIcon,
   XMarkIcon,
+  BellAlertIcon,
 } from '@heroicons/react/24/outline';
 import { Alert, alertService, AlertType } from '@/services/alertService';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -18,7 +19,7 @@ interface AlertCardProps {
   alert: Alert;
 }
 
-const typeIcons: Record<AlertType, React.ComponentType<{ className?: string }>> = {
+const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   LOW_STOCK: ExclamationTriangleIcon,
   SHIFT_OPEN_TOO_LONG: ClockIcon,
   CASH_VARIANCE: BanknotesIcon,
@@ -34,14 +35,20 @@ const priorityColors: Record<string, string> = {
   LOW: 'border-l-blue-500 bg-blue-50',
 };
 
+// Default configs for unknown types
+const defaultTypeConfig = { label: 'Alerte', icon: 'BellAlertIcon' };
+const defaultPriorityConfig = { label: 'Normal', color: 'text-secondary-600', bgColor: 'bg-secondary-100' };
+const defaultStatusConfig = { label: 'Inconnu', variant: 'secondary' as const };
+
 export function AlertCard({ alert }: AlertCardProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const Icon = typeIcons[alert.type];
-  const typeConfig = alertService.getTypeConfig(alert.type);
-  const priorityConfig = alertService.getPriorityConfig(alert.priority);
-  const statusConfig = alertService.getStatusConfig(alert.status);
+  // Use default icon if type is not recognized
+  const Icon = typeIcons[alert.type] || BellAlertIcon;
+  const typeConfig = alertService.getTypeConfig(alert.type as AlertType) || defaultTypeConfig;
+  const priorityConfig = alertService.getPriorityConfig(alert.priority) || defaultPriorityConfig;
+  const statusConfig = alertService.getStatusConfig(alert.status) || defaultStatusConfig;
 
   const acknowledgeMutation = useMutation({
     mutationFn: () => alertService.acknowledgeAlert(alert.id),

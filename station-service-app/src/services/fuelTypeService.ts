@@ -17,7 +17,8 @@ export const fuelTypeService = {
   },
 
   async getActive(): Promise<FuelType[]> {
-    const response = await axiosInstance.get('/fuel-types/active');
+    // Backend's findAll already returns only active fuel types
+    const response = await axiosInstance.get('/fuel-types');
     return response.data;
   },
 

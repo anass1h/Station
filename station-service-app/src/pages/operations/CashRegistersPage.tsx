@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FunnelIcon } from '@heroicons/react/24/outline';
+import { FunnelIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 import { shiftOperationsService, CashRegisterSummary } from '@/services/shiftOperationsService';
 import { userService } from '@/services/userService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { SelectField } from '@/components/ui/SelectField';
@@ -10,7 +11,24 @@ import { formatDateTime, formatCurrency } from '@/utils/exportExcel';
 
 export function CashRegistersPage() {
   const { user } = useAuthStore();
-  const stationId = user?.stationId || '';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const [selectedStationId, setSelectedStationId] = useState<string>(user?.stationId || '');
+
+  // Fetch stations for SUPER_ADMIN
+  const { data: stations = [] } = useQuery<Station[]>({
+    queryKey: ['stations'],
+    queryFn: stationService.getAll,
+    enabled: isSuperAdmin,
+  });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStationId && stations.length > 0) {
+      setSelectedStationId(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStationId, stations]);
+
+  const stationId = selectedStationId || user?.stationId || '';
 
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -58,35 +76,35 @@ export function CashRegistersPage() {
     {
       key: 'pompiste',
       label: 'Pompiste',
-      render: (r) => `${r.pompiste.firstName} ${r.pompiste.lastName}`,
+      render: (r) => r.pompiste ? `${r.pompiste.firstName} ${r.pompiste.lastName}` : '-',
     },
     {
       key: 'shift',
       label: 'Shift',
-      render: (r) => (
+      render: (r) => r.shift ? (
         <span className="text-sm">
           {new Date(r.shift.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
           {' - '}
           {new Date(r.shift.endTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
         </span>
-      ),
+      ) : '-',
     },
     {
       key: 'expectedAmount',
       label: 'Attendu',
-      render: (r) => formatCurrency(r.expectedAmount),
+      render: (r) => formatCurrency(Number(r.expectedAmount)),
     },
     {
       key: 'declaredAmount',
       label: 'Declare',
-      render: (r) => formatCurrency(r.declaredAmount),
+      render: (r) => formatCurrency(Number(r.declaredAmount)),
     },
     {
       key: 'variance',
       label: 'Ecart',
       render: (r) => (
-        <span className={`font-medium ${getVarianceColor(r.variance)}`}>
-          {r.variance > 0 ? '+' : ''}{formatCurrency(r.variance)}
+        <span className={`font-medium ${getVarianceColor(Number(r.variance))}`}>
+          {Number(r.variance) > 0 ? '+' : ''}{formatCurrency(Number(r.variance))}
         </span>
       ),
     },
@@ -109,19 +127,42 @@ export function CashRegistersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-secondary-900">Clotures de caisse</h1>
-          <p className="text-secondary-500">Historique des clotures et ecarts</p>
+          <p className="text-secondary-500">
+            {isSuperAdmin && stations.length > 0
+              ? `Station: ${stations.find(s => s.id === stationId)?.name || 'Selectionnez une station'}`
+              : 'Historique des clotures et ecarts'}
+          </p>
         </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-            showFilters
-              ? 'border-primary-500 bg-primary-50 text-primary-700'
-              : 'border-secondary-300 bg-white text-secondary-700 hover:bg-secondary-50'
-          }`}
-        >
-          <FunnelIcon className="h-5 w-5" />
-          <span>Filtres</span>
-        </button>
+        <div className="flex gap-2">
+          {/* Station selector for SUPER_ADMIN */}
+          {isSuperAdmin && stations.length > 0 && (
+            <div className="relative">
+              <select
+                value={selectedStationId}
+                onChange={(e) => setSelectedStationId(e.target.value)}
+                className="flex items-center gap-2 px-4 py-2 pr-8 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors text-sm font-medium text-secondary-700 appearance-none cursor-pointer"
+              >
+                {stations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+              <BuildingStorefrontIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary-500 pointer-events-none" />
+            </div>
+          )}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              showFilters
+                ? 'border-primary-500 bg-primary-50 text-primary-700'
+                : 'border-secondary-300 bg-white text-secondary-700 hover:bg-secondary-50'
+            }`}
+          >
+            <FunnelIcon className="h-5 w-5" />
+            <span>Filtres</span>
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -186,7 +227,9 @@ export function CashRegistersPage() {
             <div className="space-y-4 mb-6">
               <div className="flex justify-between">
                 <span className="text-secondary-600">Pompiste</span>
-                <span className="font-medium">{selectedRegister.pompiste.firstName} {selectedRegister.pompiste.lastName}</span>
+                <span className="font-medium">
+                  {selectedRegister.pompiste ? `${selectedRegister.pompiste.firstName} ${selectedRegister.pompiste.lastName}` : '-'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-secondary-600">Date</span>
@@ -195,7 +238,9 @@ export function CashRegistersPage() {
               <div className="flex justify-between">
                 <span className="text-secondary-600">Shift</span>
                 <span className="font-medium">
-                  {formatCurrency(selectedRegister.shift.totalAmount)} ({selectedRegister.shift.totalLiters.toFixed(0)} L)
+                  {selectedRegister.shift
+                    ? `${formatCurrency(Number(selectedRegister.shift.totalAmount))} (${Number(selectedRegister.shift.totalLiters).toFixed(0)} L)`
+                    : '-'}
                 </span>
               </div>
             </div>
@@ -205,14 +250,14 @@ export function CashRegistersPage() {
               <h4 className="font-medium text-secondary-900 mb-3">Ventilation par moyen de paiement</h4>
               <div className="space-y-2">
                 {selectedRegister.details.map((detail, index) => (
-                  <div key={index} className={`flex justify-between p-3 rounded-lg ${getVarianceBg(detail.variance)}`}>
+                  <div key={index} className={`flex justify-between p-3 rounded-lg ${getVarianceBg(Number(detail.variance))}`}>
                     <span className="font-medium">{detail.paymentMethod}</span>
                     <div className="text-right">
                       <div className="text-sm text-secondary-600">
-                        Attendu: {formatCurrency(detail.expected)} / Declare: {formatCurrency(detail.declared)}
+                        Attendu: {formatCurrency(Number(detail.expected))} / Declare: {formatCurrency(Number(detail.declared))}
                       </div>
-                      <div className={`font-semibold ${getVarianceColor(detail.variance)}`}>
-                        Ecart: {detail.variance > 0 ? '+' : ''}{formatCurrency(detail.variance)}
+                      <div className={`font-semibold ${getVarianceColor(Number(detail.variance))}`}>
+                        Ecart: {Number(detail.variance) > 0 ? '+' : ''}{formatCurrency(Number(detail.variance))}
                       </div>
                     </div>
                   </div>

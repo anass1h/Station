@@ -54,8 +54,12 @@ export const deliveryService = {
     supplierId?: string;
     tankId?: string;
   }): Promise<Delivery[]> {
-    const response = await axiosInstance.get('/deliveries', {
-      params: { stationId, ...filters },
+    const response = await axiosInstance.get(`/deliveries/by-station/${stationId}`, {
+      params: {
+        from: filters?.startDate,
+        to: filters?.endDate,
+        supplierId: filters?.supplierId,
+      },
     });
     return response.data;
   },
@@ -65,10 +69,63 @@ export const deliveryService = {
     return response.data;
   },
 
-  async create(stationId: string, data: CreateDeliveryDto): Promise<Delivery> {
-    const response = await axiosInstance.post('/deliveries', {
-      stationId,
-      ...data,
+  async create(_stationId: string, data: CreateDeliveryDto): Promise<Delivery> {
+    const response = await axiosInstance.post('/deliveries', data);
+    return response.data;
+  },
+
+  async getByTank(tankId: string, filters?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Delivery[]> {
+    const response = await axiosInstance.get(`/deliveries/by-tank/${tankId}`, {
+      params: {
+        from: filters?.startDate,
+        to: filters?.endDate,
+      },
+    });
+    return response.data;
+  },
+
+  async getBySupplier(supplierId: string, filters?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Delivery[]> {
+    const response = await axiosInstance.get(`/deliveries/by-supplier/${supplierId}`, {
+      params: {
+        from: filters?.startDate,
+        to: filters?.endDate,
+      },
+    });
+    return response.data;
+  },
+
+  async getStats(stationId: string, filters?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{
+    totalDeliveries: number;
+    totalQuantity: number;
+    totalAmount: number;
+    byFuelType: {
+      fuelTypeId: string;
+      name: string;
+      quantity: number;
+      amount: number;
+    }[];
+    bySupplier: {
+      supplierId: string;
+      name: string;
+      deliveries: number;
+      quantity: number;
+      amount: number;
+    }[];
+  }> {
+    const response = await axiosInstance.get(`/deliveries/by-station/${stationId}/summary`, {
+      params: {
+        from: filters?.startDate,
+        to: filters?.endDate,
+      },
     });
     return response.data;
   },

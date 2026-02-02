@@ -248,6 +248,51 @@ export class SaleService {
     });
   }
 
+  async findRecent(stationId: string, limit: number = 10) {
+    const sales = await this.prisma.sale.findMany({
+      where: {
+        shift: {
+          nozzle: {
+            dispenser: {
+              stationId,
+            },
+          },
+        },
+      },
+      include: {
+        fuelType: true,
+        shift: {
+          include: {
+            pompiste: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+        payments: {
+          include: {
+            paymentMethod: true,
+          },
+        },
+      },
+      orderBy: { soldAt: 'desc' },
+      take: limit,
+    });
+
+    return sales.map(sale => ({
+      id: sale.id,
+      soldAt: sale.soldAt,
+      pompisteName: `${sale.shift.pompiste.firstName} ${sale.shift.pompiste.lastName}`,
+      fuelTypeName: sale.fuelType.name,
+      quantity: Number(sale.quantity),
+      totalAmount: Number(sale.totalAmount),
+      paymentMethod: sale.payments[0]?.paymentMethod?.name || 'N/A',
+    }));
+  }
+
   async findByStation(
     stationId: string,
     filters?: {

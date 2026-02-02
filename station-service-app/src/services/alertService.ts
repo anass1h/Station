@@ -13,21 +13,33 @@ export type AlertType =
 export interface Alert {
   id: string;
   stationId: string;
+  // Backend uses 'alertType', frontend maps to 'type' for compatibility
   type: AlertType;
+  alertType?: AlertType;
   priority: AlertPriority;
   status: AlertStatus;
   title: string;
   message: string;
+  // Backend uses 'relatedEntityType' and 'relatedEntityId'
   entityType: string | null;
   entityId: string | null;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
   acknowledgedById: string | null;
+  acknowledgedByUserId?: string | null;
   acknowledgedAt: string | null;
   resolvedById: string | null;
+  resolvedByUserId?: string | null;
   resolvedAt: string | null;
   ignoredById: string | null;
   ignoredAt: string | null;
+  triggeredAt?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
+  station?: {
+    id: string;
+    name: string;
+  };
   acknowledgedBy?: {
     id: string;
     firstName: string;
@@ -55,6 +67,20 @@ export interface AlertsCount {
   acknowledged: number;
 }
 
+// Helper to normalize backend alert to frontend format
+const normalizeAlert = (alert: Record<string, unknown>): Alert => ({
+  ...alert,
+  // Map backend 'alertType' to frontend 'type'
+  type: (alert.alertType || alert.type) as AlertType,
+  // Map backend field names to frontend
+  entityType: (alert.relatedEntityType || alert.entityType) as string | null,
+  entityId: (alert.relatedEntityId || alert.entityId) as string | null,
+  acknowledgedById: (alert.acknowledgedByUserId || alert.acknowledgedById) as string | null,
+  resolvedById: (alert.resolvedByUserId || alert.resolvedById) as string | null,
+  // Use triggeredAt as createdAt fallback
+  createdAt: (alert.createdAt || alert.triggeredAt) as string,
+} as Alert);
+
 export const alertService = {
   async getAlerts(stationId: string, filters?: {
     status?: AlertStatus | AlertStatus[];
@@ -64,32 +90,43 @@ export const alertService = {
     const response = await axiosInstance.get('/alerts', {
       params: { stationId, ...filters },
     });
-    return response.data;
+    return response.data.map(normalizeAlert);
   },
 
   async getAlert(id: string): Promise<Alert> {
     const response = await axiosInstance.get(`/alerts/${id}`);
-    return response.data;
+    return normalizeAlert(response.data);
   },
 
   async acknowledgeAlert(id: string): Promise<Alert> {
-    const response = await axiosInstance.post(`/alerts/${id}/acknowledge`);
-    return response.data;
+    const response = await axiosInstance.patch(`/alerts/${id}/acknowledge`);
+    return normalizeAlert(response.data);
   },
 
   async resolveAlert(id: string, resolution?: string): Promise<Alert> {
-    const response = await axiosInstance.post(`/alerts/${id}/resolve`, { resolution });
-    return response.data;
+    const response = await axiosInstance.patch(`/alerts/${id}/resolve`, { resolution });
+    return normalizeAlert(response.data);
   },
 
   async ignoreAlert(id: string, reason?: string): Promise<Alert> {
-    const response = await axiosInstance.post(`/alerts/${id}/ignore`, { reason });
-    return response.data;
+    const response = await axiosInstance.patch(`/alerts/${id}/ignore`, { reason });
+    return normalizeAlert(response.data);
   },
 
   async getAlertsCount(stationId: string): Promise<AlertsCount> {
-    const response = await axiosInstance.get(`/alerts/count/${stationId}`);
-    return response.data;
+    // Backend returns { count: number }, we need to transform to AlertsCount
+    // For now, get all alerts and count them client-side
+    const alerts = await alertService.getAlerts(stationId);
+    const count: AlertsCount = {
+      total: alerts.length,
+      critical: alerts.filter(a => a.priority === 'CRITICAL' && a.status === 'ACTIVE').length,
+      high: alerts.filter(a => a.priority === 'HIGH' && a.status === 'ACTIVE').length,
+      medium: alerts.filter(a => a.priority === 'MEDIUM' && a.status === 'ACTIVE').length,
+      low: alerts.filter(a => a.priority === 'LOW' && a.status === 'ACTIVE').length,
+      active: alerts.filter(a => a.status === 'ACTIVE').length,
+      acknowledged: alerts.filter(a => a.status === 'ACKNOWLEDGED').length,
+    };
+    return count;
   },
 
   getTypeConfig(type: AlertType): { label: string; icon: string } {

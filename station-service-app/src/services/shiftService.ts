@@ -108,6 +108,31 @@ export const shiftService = {
     const response = await axiosInstance.get<Shift[]>(`/shifts/by-pompiste/${pompisteId}`);
     return response.data;
   },
+
+  /**
+   * Get shifts by station with optional filters
+   */
+  getByStation: async (stationId: string, filters?: {
+    startDate?: string;
+    endDate?: string;
+    pompisteId?: string;
+    status?: 'OPEN' | 'CLOSED' | 'VALIDATED';
+  }): Promise<Shift[]> => {
+    const response = await axiosInstance.get<Shift[]>('/shifts', {
+      params: { stationId, ...filters },
+    });
+    return response.data;
+  },
+
+  /**
+   * Get active shifts for a station
+   */
+  getActiveShifts: async (stationId: string): Promise<Shift[]> => {
+    const response = await axiosInstance.get<Shift[]>('/shifts', {
+      params: { stationId, status: 'OPEN' },
+    });
+    return response.data;
+  },
 };
 
 export default shiftService;

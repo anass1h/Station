@@ -61,20 +61,19 @@ export interface Invoice {
 }
 
 export interface CreateInvoiceLineDto {
-  fuelTypeId?: string;
-  description: string;
+  fuelTypeId: string;
+  description?: string;
   quantity: number;
   unitPriceHT: number;
 }
 
 export interface CreateInvoiceDto {
   clientId?: string;
-  type: InvoiceType;
+  invoiceType: InvoiceType;
   periodStart?: string;
   periodEnd?: string;
   notes?: string;
   lines: CreateInvoiceLineDto[];
-  issue?: boolean;
 }
 
 export interface AddPaymentDto {
@@ -93,8 +92,14 @@ export const invoiceService = {
     startDate?: string;
     endDate?: string;
   }): Promise<Invoice[]> {
-    const response = await axiosInstance.get('/invoices', {
-      params: { stationId, ...filters },
+    const response = await axiosInstance.get(`/invoices/by-station/${stationId}`, {
+      params: {
+        status: filters?.status,
+        invoiceType: filters?.type,
+        clientId: filters?.clientId,
+        from: filters?.startDate,
+        to: filters?.endDate,
+      },
     });
     return response.data;
   },
@@ -104,17 +109,24 @@ export const invoiceService = {
     return response.data;
   },
 
-  async create(stationId: string, data: CreateInvoiceDto): Promise<Invoice> {
+  async create(stationId: string, data: CreateInvoiceDto, issueImmediately: boolean = false): Promise<Invoice> {
     const response = await axiosInstance.post('/invoices', {
       stationId,
       ...data,
     });
+
+    // If issue immediately is requested, call the issue endpoint
+    if (issueImmediately && response.data.id) {
+      return this.issue(response.data.id);
+    }
+
     return response.data;
   },
 
-  async update(id: string, data: Partial<CreateInvoiceDto>): Promise<Invoice> {
-    const response = await axiosInstance.patch(`/invoices/${id}`, data);
-    return response.data;
+  async update(_id: string, _data: Partial<CreateInvoiceDto>): Promise<Invoice> {
+    // Backend doesn't support invoice update - invoices are immutable once created
+    // To "update", cancel and create a new one
+    throw new Error('Les factures ne peuvent pas être modifiées. Veuillez annuler et créer une nouvelle facture.');
   },
 
   async issue(id: string): Promise<Invoice> {
@@ -128,12 +140,13 @@ export const invoiceService = {
   },
 
   async addPayment(id: string, data: AddPaymentDto): Promise<InvoicePayment> {
-    const response = await axiosInstance.post(`/invoices/${id}/payments`, data);
+    const response = await axiosInstance.post(`/invoices/${id}/payment`, data);
     return response.data;
   },
 
   async delete(id: string): Promise<void> {
-    await axiosInstance.delete(`/invoices/${id}`);
+    // Backend doesn't support delete - use cancel instead
+    await axiosInstance.post(`/invoices/${id}/cancel`, { reason: 'Suppression demandée' });
   },
 
   async downloadPdf(id: string): Promise<Blob> {
@@ -151,7 +164,7 @@ export const invoiceService = {
     return `FAC-${year}${month}-${random}`;
   },
 
-  calculateTotals(lines: CreateInvoiceLineDto[], tvaRate: number = 0.20): {
+  calculateTotals(lines: { quantity: number; unitPriceHT: number }[], tvaRate: number = 0.20): {
     totalHT: number;
     tvaAmount: number;
     totalTTC: number;
@@ -164,5 +177,15 @@ export const invoiceService = {
       tvaAmount: Number(tvaAmount.toFixed(2)),
       totalTTC: Number(totalTTC.toFixed(2)),
     };
+  },
+
+  async getUnpaid(stationId: string): Promise<Invoice[]> {
+    const response = await axiosInstance.get(`/invoices/by-station/${stationId}/unpaid`);
+    return response.data;
+  },
+
+  async getOverdue(stationId: string): Promise<Invoice[]> {
+    const response = await axiosInstance.get(`/invoices/by-station/${stationId}/overdue`);
+    return response.data;
   },
 };

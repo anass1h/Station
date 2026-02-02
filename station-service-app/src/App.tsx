@@ -13,6 +13,7 @@ import {
   EndShiftPage,
   CashRegisterPage,
   PlaceholderPage,
+  ProfilePage,
 } from '@/pages';
 import {
   StationsPage,
@@ -157,6 +158,7 @@ function App() {
           <Route path="/pompiste/nouvelle-vente" element={<NewSalePage />} />
           <Route path="/pompiste/cloturer-shift" element={<EndShiftPage />} />
           <Route path="/pompiste/cloture-caisse" element={<CashRegisterPage />} />
+          <Route path="/pompiste/profil" element={<ProfilePage />} />
         </Route>
 
         {/* Gestionnaire & Admin routes with MainLayout */}
@@ -248,7 +250,7 @@ function App() {
           <Route path="/alertes/:id" element={<AlertDetailPage />} />
 
           {/* Profile */}
-          <Route path="/profil" element={<PlaceholderPage title="Mon Profil" />} />
+          <Route path="/profil" element={<ProfilePage />} />
 
           {/* Admin only */}
           <Route path="/admin/licences" element={<PlaceholderPage title="Gestion des Licences" />} />

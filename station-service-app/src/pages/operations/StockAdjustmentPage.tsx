@@ -157,7 +157,7 @@ export function StockAdjustmentPage() {
               </div>
               <div>
                 <p className="text-secondary-500">Remplissage</p>
-                <p className="font-semibold">{((selectedTank.currentLevel / selectedTank.capacity) * 100).toFixed(1)}%</p>
+                <p className="font-semibold">{((Number(selectedTank.currentLevel) / Number(selectedTank.capacity)) * 100).toFixed(1)}%</p>
               </div>
             </div>
           </div>

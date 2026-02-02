@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -8,9 +8,11 @@ import {
   EyeIcon,
   DocumentArrowDownIcon,
   BanknotesIcon,
+  BuildingStorefrontIcon,
 } from '@heroicons/react/24/outline';
 import { invoiceService, Invoice, InvoiceStatus, InvoiceType } from '@/services/invoiceService';
 import { clientService } from '@/services/clientService';
+import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { DataTable, Column, TableAction } from '@/components/ui/DataTable';
 import { SelectField } from '@/components/ui/SelectField';
@@ -34,7 +36,24 @@ const typeLabels: Record<InvoiceType, string> = {
 export function InvoicesPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const stationId = user?.stationId || '';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const [selectedStationId, setSelectedStationId] = useState<string>(user?.stationId || '');
+
+  // Fetch stations for SUPER_ADMIN
+  const { data: stations = [] } = useQuery<Station[]>({
+    queryKey: ['stations'],
+    queryFn: stationService.getAll,
+    enabled: isSuperAdmin,
+  });
+
+  // Auto-select first station for SUPER_ADMIN
+  useEffect(() => {
+    if (isSuperAdmin && !selectedStationId && stations.length > 0) {
+      setSelectedStationId(stations[0].id);
+    }
+  }, [isSuperAdmin, selectedStationId, stations]);
+
+  const stationId = selectedStationId || user?.stationId || '';
 
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -69,10 +88,10 @@ export function InvoicesPage() {
       { key: 'issuedAt', label: 'Date', format: (v) => v ? formatDate(v as string) : '-' },
       { key: 'client', label: 'Client', format: (_, item) => (item as Invoice).client?.companyName || (item as Invoice).client?.contactName || 'N/A' },
       { key: 'type', label: 'Type', format: (v) => typeLabels[v as InvoiceType] },
-      { key: 'totalHT', label: 'HT', format: (v) => formatCurrency(v as number) },
-      { key: 'tvaAmount', label: 'TVA', format: (v) => formatCurrency(v as number) },
-      { key: 'totalTTC', label: 'TTC', format: (v) => formatCurrency(v as number) },
-      { key: 'paidAmount', label: 'Paye', format: (v) => formatCurrency(v as number) },
+      { key: 'totalHT', label: 'HT', format: (v) => formatCurrency(Number(v)) },
+      { key: 'tvaAmount', label: 'TVA', format: (v) => formatCurrency(Number(v)) },
+      { key: 'totalTTC', label: 'TTC', format: (v) => formatCurrency(Number(v)) },
+      { key: 'paidAmount', label: 'Paye', format: (v) => formatCurrency(Number(v)) },
       { key: 'status', label: 'Statut', format: (v) => statusConfig[v as InvoiceStatus].label },
     ]);
   };
@@ -120,24 +139,24 @@ export function InvoicesPage() {
     {
       key: 'totalHT',
       label: 'HT',
-      render: (i) => formatCurrency(i.totalHT),
+      render: (i) => formatCurrency(Number(i.totalHT)),
     },
     {
       key: 'tvaAmount',
       label: 'TVA',
-      render: (i) => formatCurrency(i.tvaAmount),
+      render: (i) => formatCurrency(Number(i.tvaAmount)),
     },
     {
       key: 'totalTTC',
       label: 'TTC',
-      render: (i) => <span className="font-medium">{formatCurrency(i.totalTTC)}</span>,
+      render: (i) => <span className="font-medium">{formatCurrency(Number(i.totalTTC))}</span>,
     },
     {
       key: 'paidAmount',
       label: 'Paye',
       render: (i) => (
-        <span className={i.paidAmount >= i.totalTTC ? 'text-success-600' : 'text-secondary-600'}>
-          {formatCurrency(i.paidAmount)}
+        <span className={Number(i.paidAmount) >= Number(i.totalTTC) ? 'text-success-600' : 'text-secondary-600'}>
+          {formatCurrency(Number(i.paidAmount))}
         </span>
       ),
     },
@@ -192,9 +211,30 @@ export function InvoicesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-secondary-900">Factures</h1>
-          <p className="text-secondary-500">Gestion des factures</p>
+          <p className="text-secondary-500">
+            {isSuperAdmin && stations.length > 0
+              ? `Station: ${stations.find(s => s.id === stationId)?.name || 'Selectionnez une station'}`
+              : 'Gestion des factures'}
+          </p>
         </div>
         <div className="flex gap-2">
+          {/* Station selector for SUPER_ADMIN */}
+          {isSuperAdmin && stations.length > 0 && (
+            <div className="relative">
+              <select
+                value={selectedStationId}
+                onChange={(e) => setSelectedStationId(e.target.value)}
+                className="flex items-center gap-2 px-4 py-2 pr-8 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors text-sm font-medium text-secondary-700 appearance-none cursor-pointer"
+              >
+                {stations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+              <BuildingStorefrontIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary-500 pointer-events-none" />
+            </div>
+          )}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${

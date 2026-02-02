@@ -39,6 +39,18 @@ export class SaleController {
     return this.saleService.create(dto);
   }
 
+  @Get('recent')
+  @ApiOperation({ summary: 'Récupérer les ventes récentes d\'une station' })
+  @ApiQuery({ name: 'stationId', required: true, description: 'UUID de la station' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Nombre de ventes (défaut: 10)' })
+  @ApiResponse({ status: 200, description: 'Liste des ventes récentes' })
+  async findRecent(
+    @Query('stationId', ParseUUIDPipe) stationId: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.saleService.findRecent(stationId, limit ? parseInt(limit, 10) : 10);
+  }
+
   @Get('by-shift/:shiftId')
   @ApiOperation({ summary: 'Récupérer les ventes d\'un shift' })
   @ApiParam({ name: 'shiftId', description: 'UUID du shift' })
