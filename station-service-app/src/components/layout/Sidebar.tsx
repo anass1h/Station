@@ -87,7 +87,7 @@ const alertNavItems: NavItem[] = [
 ];
 
 const adminNavItems: NavItem[] = [
-  { name: 'Licences', path: '/admin/licences', icon: KeyIcon, iconSolid: KeyIconSolid, roles: ['SUPER_ADMIN'] },
+  { name: 'Gestion Clients', path: '/admin/clients', icon: KeyIcon, iconSolid: KeyIconSolid, roles: ['SUPER_ADMIN'] },
 ];
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {

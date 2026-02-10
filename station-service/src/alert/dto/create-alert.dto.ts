@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AlertPriority, AlertType } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class CreateAlertDto {
   @ApiProperty({ description: 'UUID de la station' })
@@ -17,10 +17,12 @@ export class CreateAlertDto {
 
   @ApiProperty({ description: "Titre de l'alerte" })
   @IsString()
+  @MaxLength(200)
   title!: string;
 
   @ApiProperty({ description: "Message détaillé de l'alerte" })
   @IsString()
+  @MaxLength(2000)
   message!: string;
 
   @ApiPropertyOptional({ description: "ID de l'entité concernée" })

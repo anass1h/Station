@@ -16,7 +16,7 @@ const pageTitles: Record<string, string> = {
   '/pompistes': 'Pompistes',
   '/prix': 'Prix du carburant',
   '/alertes': 'Alertes',
-  '/admin/licences': 'Gestion des licences',
+  '/admin/clients': 'Gestion des Clients',
   '/profil': 'Mon profil',
 };
 

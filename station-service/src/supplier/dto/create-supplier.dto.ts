@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import { MOROCCAN_REGEX, FORMAT_REGEX } from '../../common/constants/index.js';
 
 export class CreateSupplierDto {
   @ApiProperty({
@@ -8,6 +16,7 @@ export class CreateSupplierDto {
   })
   @IsString()
   @MinLength(2)
+  @MaxLength(100)
   name!: string;
 
   @ApiPropertyOptional({
@@ -16,14 +25,16 @@ export class CreateSupplierDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   contactName?: string;
 
   @ApiPropertyOptional({
-    description: 'Numéro de téléphone',
-    example: '+212 522 123456',
+    description: 'Téléphone',
+    example: '+212522123456',
   })
   @IsOptional()
   @IsString()
+  @Matches(FORMAT_REGEX.PHONE_MA, { message: FORMAT_REGEX.PHONE_MA_MESSAGE })
   phone?: string;
 
   @ApiPropertyOptional({
@@ -40,5 +51,24 @@ export class CreateSupplierDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   address?: string;
+
+  @ApiPropertyOptional({
+    description: 'ICE fournisseur (15 chiffres)',
+    example: '009876543000012',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(MOROCCAN_REGEX.ICE, { message: MOROCCAN_REGEX.ICE_MESSAGE })
+  ice?: string;
+
+  @ApiPropertyOptional({
+    description: 'IF fournisseur (8 chiffres)',
+    example: '87654321',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(MOROCCAN_REGEX.TAX_ID, { message: MOROCCAN_REGEX.TAX_ID_MESSAGE })
+  taxId?: string;
 }

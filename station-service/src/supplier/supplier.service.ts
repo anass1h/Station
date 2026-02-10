@@ -43,6 +43,11 @@ export class SupplierService {
       throw new NotFoundException(`Fournisseur avec l'ID ${id} non trouvé`);
     }
 
+    // Masquer les fournisseurs désactivés
+    if (!supplier.isActive) {
+      throw new NotFoundException(`Fournisseur avec l'ID ${id} non trouvé`);
+    }
+
     return supplier;
   }
 

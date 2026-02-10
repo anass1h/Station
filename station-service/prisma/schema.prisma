@@ -87,10 +87,7 @@ enum AlertStatus {
 }
 
 enum LicencePlan {
-  TRIAL
-  BASIC
-  PREMIUM
-  ENTERPRISE
+  BETA
 }
 
 enum LicenceStatus {
@@ -172,9 +169,9 @@ model Station {
   city      String
   phone     String?
   email     String?
-  ice       String?  // Identifiant Commun Entreprise
-  taxId     String?  // Identifiant Fiscal (IF)
-  rc        String?  // Registre du Commerce
+  ice       String?  @unique // Identifiant Commun Entreprise — unique au Maroc
+  taxId     String?  @unique // Identifiant Fiscal (IF) — unique
+  rc        String?  // Registre du Commerce — unique par ville (voir @@unique)
   patente   String?  // Numéro de patente
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -192,6 +189,7 @@ model Station {
   licence         Licence?
   pompisteDebts   PompisteDebt[]
 
+  @@unique([rc, city])
   @@index([isActive])
   @@index([city])
   @@map("stations")
@@ -441,6 +439,8 @@ model Supplier {
   phone       String?
   email       String?
   address     String?
+  ice         String?  @unique // ICE fournisseur — unique
+  taxId       String?          // IF fournisseur
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -448,6 +448,7 @@ model Supplier {
   deliveries Delivery[]
 
   @@index([isActive])
+  @@index([name])
   @@map("suppliers")
 }
 
@@ -554,6 +555,7 @@ model Client {
   sales    Sale[]
   invoices Invoice[]
 
+  @@unique([stationId, ice])
   @@index([stationId])
   @@index([clientType])
   @@index([isActive])
@@ -567,7 +569,7 @@ model Invoice {
   id            String        @id @default(uuid())
   stationId     String
   clientId      String? // null si ticket B2C anonyme
-  invoiceNumber String        @unique // numéro séquentiel
+  invoiceNumber String        // numéro séquentiel — unique par station (voir @@unique)
   invoiceType   InvoiceType
   status        InvoiceStatus @default(DRAFT)
   amountHT      Decimal       @db.Decimal(12, 2)
@@ -590,6 +592,7 @@ model Invoice {
   payments    InvoicePayment[]
   creditNotes CreditNote[]
 
+  @@unique([stationId, invoiceNumber])
   @@index([stationId])
   @@index([clientId])
   @@index([status])
@@ -730,18 +733,21 @@ model Alert {
 // LICENCE (Abonnement station)
 // ===========================================
 model Licence {
-  id            String        @id @default(uuid())
-  stationId     String        @unique // une licence par station
-  plan          LicencePlan
-  status        LicenceStatus @default(ACTIVE)
-  startDate     DateTime
-  endDate       DateTime
-  maxUsers      Int           @default(5)
-  maxDispensers Int           @default(4)
-  features      Json? // fonctionnalités activées {"invoicing": true, "reports": true, ...}
-  lastCheckedAt DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id              String        @id @default(uuid())
+  stationId       String        @unique // une licence par station
+  plan            LicencePlan
+  status          LicenceStatus @default(ACTIVE)
+  startDate       DateTime
+  endDate         DateTime
+  maxUsers        Int           @default(99)
+  maxDispensers   Int           @default(99)
+  maxTanks        Int           @default(99)
+  maxStations     Int           @default(1)
+  features        Json
+  gracePeriodDays Int           @default(30)
+  lastCheckedAt   DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
 

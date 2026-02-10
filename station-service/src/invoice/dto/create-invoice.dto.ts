@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -69,5 +70,6 @@ export class CreateInvoiceDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   notes?: string;
 }

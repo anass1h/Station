@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsString,
   IsUUID,
+  MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
@@ -36,6 +37,7 @@ export class CreateNozzleDto {
   })
   @IsString()
   @MinLength(1)
+  @MaxLength(50)
   reference!: string;
 
   @ApiProperty({

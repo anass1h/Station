@@ -1,27 +1,24 @@
 import {
   Injectable,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import { Licence, LicenceStatus, Prisma } from '@prisma/client';
+import { Licence, LicencePlan, LicenceStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/index.js';
 import { AuditLogService } from '../audit-log/index.js';
-import { CreateLicenceDto, UpdateLicenceDto } from './dto';
+import { getPlanConfig } from './licence-plans.config.js';
+import { CreateLicenceDto } from './dto/create-licence.dto.js';
+import { SuspendLicenceDto } from './dto/suspend-licence.dto.js';
+import { ReactivateLicenceDto } from './dto/reactivate-licence.dto.js';
+import { ExtendLicenceDto } from './dto/extend-licence.dto.js';
 
 export interface LicenceCheckResult {
   valid: boolean;
   reason?: string;
   daysRemaining?: number;
   licence?: Licence;
-}
-
-interface LicenceFeatures {
-  invoicing?: boolean;
-  reports?: boolean;
-  multiStation?: boolean;
-  api?: boolean;
-  support?: string;
 }
 
 @Injectable()
@@ -33,62 +30,38 @@ export class LicenceService {
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  private getDefaultFeatures(plan: string): Prisma.InputJsonValue {
-    const features: Record<string, LicenceFeatures> = {
-      TRIAL: {
-        invoicing: true,
-        reports: false,
-        multiStation: false,
-        api: false,
-        support: 'email',
-      },
-      BASIC: {
-        invoicing: true,
-        reports: true,
-        multiStation: false,
-        api: false,
-        support: 'email',
-      },
-      PREMIUM: {
-        invoicing: true,
-        reports: true,
-        multiStation: true,
-        api: true,
-        support: 'priority',
-      },
-      ENTERPRISE: {
-        invoicing: true,
-        reports: true,
-        multiStation: true,
-        api: true,
-        support: '24/7',
-      },
+  private getPlanDefaults(plan: LicencePlan) {
+    const config = getPlanConfig(plan);
+    return {
+      maxUsers: config.maxUsers,
+      maxDispensers: config.maxDispensers,
+      maxTanks: config.maxTanks,
+      maxStations: config.maxStations,
+      features: config.features as unknown as Prisma.InputJsonValue,
+      gracePeriodDays: config.gracePeriodDays,
     };
-    return (features[plan] || features.TRIAL) as Prisma.InputJsonValue;
   }
 
+  // ═══════════════════════════════════════
+  // CRUD
+  // ═══════════════════════════════════════
+
   async create(dto: CreateLicenceDto): Promise<Licence> {
-    // Vérifier que la station existe
     const station = await this.prisma.station.findUnique({
       where: { id: dto.stationId },
     });
-
     if (!station) {
-      throw new NotFoundException(
-        `Station avec l'ID ${dto.stationId} non trouvée`,
-      );
+      throw new NotFoundException(`Station ${dto.stationId} non trouvée`);
     }
 
-    // Vérifier qu'il n'y a pas déjà une licence pour cette station
-    const existingLicence = await this.prisma.licence.findUnique({
+    const existing = await this.prisma.licence.findUnique({
       where: { stationId: dto.stationId },
     });
-
-    if (existingLicence) {
+    if (existing) {
       throw new ConflictException('Une licence existe déjà pour cette station');
     }
 
-    // Calculer les dates
+    const defaults = this.getPlanDefaults(dto.plan);
     const startDate = new Date();
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + dto.durationMonths);
@@ -100,20 +73,32 @@ export class LicenceService {
         status: LicenceStatus.ACTIVE,
         startDate,
         endDate,
-        maxUsers: dto.maxUsers ?? 5,
-        maxDispensers: dto.maxDispensers ?? 4,
-        features: this.getDefaultFeatures(dto.plan),
+        ...defaults,
       },
     });
 
-    this.logger.log(
-      `Licence ${dto.plan} créée pour station ${dto.stationId}, expire le ${endDate.toISOString()}`,
-    );
+    await this.auditLogService.log({
+      stationId: dto.stationId,
+      action: 'CREATE',
+      entityType: 'Licence',
+      entityId: licence.id,
+      newValue: {
+        plan: dto.plan,
+        endDate: endDate.toISOString(),
+      } as unknown as Prisma.InputJsonValue,
+    });
 
+    this.logger.log(
+      `Licence BETA créée pour station ${dto.stationId}, expire le ${endDate.toISOString()}`,
+    );
     return licence;
   }
 
-  async findAll(): Promise<Licence[]> {
+  // ═══════════════════════════════════════
+  // LECTURE — SUPER ADMIN
+  // ═══════════════════════════════════════
+
+  async findAll(): Promise<any[]> {
     return this.prisma.licence.findMany({
       include: {
         station: {
@@ -121,32 +106,75 @@ export class LicenceService {
             id: true,
             name: true,
             city: true,
+            email: true,
+            phone: true,
+            address: true,
+            isActive: true,
+            _count: {
+              select: {
+                users: {
+                  where: { isActive: true, role: { not: 'SUPER_ADMIN' } },
+                },
+                dispensers: { where: { isActive: true } },
+                tanks: { where: { isActive: true } },
+              },
+            },
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 
-  async findById(id: string): Promise<Licence> {
+  async findDetailByStation(stationId: string): Promise<any> {
     const licence = await this.prisma.licence.findUnique({
-      where: { id },
+      where: { stationId },
       include: {
         station: {
-          select: {
-            id: true,
-            name: true,
-            city: true,
+          include: {
+            _count: {
+              select: {
+                users: {
+                  where: { isActive: true, role: { not: 'SUPER_ADMIN' } },
+                },
+                dispensers: { where: { isActive: true } },
+                tanks: { where: { isActive: true } },
+              },
+            },
           },
         },
       },
     });
 
     if (!licence) {
-      throw new NotFoundException(`Licence avec l'ID ${id} non trouvée`);
+      throw new NotFoundException(
+        `Aucune licence pour la station ${stationId}`,
+      );
     }
 
-    return licence;
+    const daysRemaining = Math.max(
+      0,
+      Math.ceil((licence.endDate.getTime() - Date.now()) / 86400000),
+    );
+
+    return {
+      ...licence,
+      daysRemaining,
+      usage: {
+        users: {
+          current: licence.station._count.users,
+          max: licence.maxUsers,
+        },
+        dispensers: {
+          current: licence.station._count.dispensers,
+          max: licence.maxDispensers,
+        },
+        tanks: {
+          current: licence.station._count.tanks,
+          max: licence.maxTanks,
+        },
+      },
+    };
   }
 
   async findByStation(stationId: string): Promise<Licence | null> {
@@ -163,6 +191,10 @@ export class LicenceService {
       },
     });
   }
+
+  // ═══════════════════════════════════════
+  // VÉRIFICATION LICENCE
+  // ═══════════════════════════════════════
 
   async checkLicence(stationId: string): Promise<LicenceCheckResult> {
     const licence = await this.prisma.licence.findUnique({
@@ -194,7 +226,6 @@ export class LicenceService {
     // Vérifier l'expiration
     const now = new Date();
     if (licence.endDate < now) {
-      // Marquer comme expirée automatiquement
       await this.prisma.licence.update({
         where: { id: licence.id },
         data: { status: LicenceStatus.EXPIRED },
@@ -207,7 +238,6 @@ export class LicenceService {
       };
     }
 
-    // Calculer jours restants
     const daysRemaining = Math.ceil(
       (licence.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
     );
@@ -219,110 +249,274 @@ export class LicenceService {
     };
   }
 
-  async update(id: string, dto: UpdateLicenceDto): Promise<Licence> {
-    const licence = await this.findById(id);
-
-    const updateData: Record<string, unknown> = {};
-
-    if (dto.plan !== undefined) {
-      updateData.plan = dto.plan;
-      updateData.features = this.getDefaultFeatures(dto.plan);
-    }
-    if (dto.status !== undefined) updateData.status = dto.status;
-    if (dto.endDate !== undefined) updateData.endDate = new Date(dto.endDate);
-    if (dto.maxUsers !== undefined) updateData.maxUsers = dto.maxUsers;
-    if (dto.maxDispensers !== undefined)
-      updateData.maxDispensers = dto.maxDispensers;
-
-    return this.prisma.licence.update({
-      where: { id: licence.id },
-      data: updateData,
-    });
-  }
+  // ═══════════════════════════════════════
+  // ACTIONS SUPER ADMIN
+  // ═══════════════════════════════════════
 
   async suspend(
-    id: string,
-    reason?: string,
-    userId?: string,
-    stationId?: string,
+    stationId: string,
+    dto: SuspendLicenceDto,
+    adminUserId: string,
   ): Promise<Licence> {
-    const licence = await this.findById(id);
+    const licence = await this.prisma.licence.findUnique({
+      where: { stationId },
+    });
+    if (!licence) {
+      throw new NotFoundException(
+        `Aucune licence pour station ${stationId}`,
+      );
+    }
+    if (licence.status === LicenceStatus.SUSPENDED) {
+      throw new ConflictException('Déjà suspendue');
+    }
 
-    const updatedLicence = await this.prisma.licence.update({
-      where: { id: licence.id },
+    const updated = await this.prisma.licence.update({
+      where: { stationId },
       data: { status: LicenceStatus.SUSPENDED },
     });
 
-    // Log dans AuditLog
     await this.auditLogService.log({
-      userId,
       stationId,
-      action: 'SUSPEND',
+      userId: adminUserId,
+      action: 'SUSPEND_LICENCE',
       entityType: 'Licence',
       entityId: licence.id,
-      oldValue: { status: licence.status },
-      newValue: { status: LicenceStatus.SUSPENDED, reason },
+      oldValue: { status: licence.status } as unknown as Prisma.InputJsonValue,
+      newValue: {
+        status: 'SUSPENDED',
+        reason: dto.reason,
+      } as unknown as Prisma.InputJsonValue,
     });
 
     this.logger.warn(
-      `Licence ${licence.id} suspendue pour station ${licence.stationId}. Raison: ${reason || 'Non spécifiée'}`,
+      `Licence suspendue — station ${stationId} — motif : ${dto.reason}`,
     );
-
-    return updatedLicence;
+    return updated;
   }
 
-  async reactivate(id: string): Promise<Licence> {
-    const licence = await this.findById(id);
-
-    if (licence.status === LicenceStatus.ACTIVE) {
-      throw new ConflictException('La licence est déjà active');
-    }
-
-    // Vérifier si la licence n'est pas expirée
-    if (licence.endDate < new Date()) {
-      throw new ConflictException(
-        "Impossible de réactiver une licence expirée. Veuillez la prolonger d'abord.",
+  async reactivate(
+    stationId: string,
+    dto: ReactivateLicenceDto,
+    adminUserId: string,
+  ): Promise<Licence> {
+    const licence = await this.prisma.licence.findUnique({
+      where: { stationId },
+    });
+    if (!licence) {
+      throw new NotFoundException(
+        `Aucune licence pour station ${stationId}`,
       );
     }
+    if (licence.status === LicenceStatus.ACTIVE) {
+      throw new ConflictException('Déjà active');
+    }
 
-    const updatedLicence = await this.prisma.licence.update({
-      where: { id: licence.id },
-      data: { status: LicenceStatus.ACTIVE },
-    });
+    const newEndDate = new Date();
+    newEndDate.setMonth(newEndDate.getMonth() + dto.extensionMonths);
 
-    this.logger.log(
-      `Licence ${licence.id} réactivée pour station ${licence.stationId}`,
-    );
-
-    return updatedLicence;
-  }
-
-  async extend(id: string, months: number): Promise<Licence> {
-    const licence = await this.findById(id);
-
-    const newEndDate = new Date(licence.endDate);
-    newEndDate.setMonth(newEndDate.getMonth() + months);
-
-    // Si la licence était expirée, la réactiver
-    const status =
-      licence.status === LicenceStatus.EXPIRED
-        ? LicenceStatus.ACTIVE
-        : licence.status;
-
-    const updatedLicence = await this.prisma.licence.update({
-      where: { id: licence.id },
+    const updated = await this.prisma.licence.update({
+      where: { stationId },
       data: {
+        status: LicenceStatus.ACTIVE,
         endDate: newEndDate,
-        status,
+        startDate: new Date(),
       },
     });
 
-    this.logger.log(
-      `Licence ${licence.id} prolongée de ${months} mois, nouvelle fin: ${newEndDate.toISOString()}`,
-    );
+    await this.auditLogService.log({
+      stationId,
+      userId: adminUserId,
+      action: 'REACTIVATE_LICENCE',
+      entityType: 'Licence',
+      entityId: licence.id,
+      oldValue: {
+        status: licence.status,
+        endDate: licence.endDate,
+      } as unknown as Prisma.InputJsonValue,
+      newValue: {
+        status: 'ACTIVE',
+        endDate: newEndDate,
+      } as unknown as Prisma.InputJsonValue,
+    });
 
-    return updatedLicence;
+    this.logger.log(
+      `Licence réactivée — station ${stationId} — +${dto.extensionMonths} mois`,
+    );
+    return updated;
   }
+
+  async extend(
+    stationId: string,
+    dto: ExtendLicenceDto,
+    adminUserId: string,
+  ): Promise<Licence> {
+    const licence = await this.prisma.licence.findUnique({
+      where: { stationId },
+    });
+    if (!licence) {
+      throw new NotFoundException(
+        `Aucune licence pour station ${stationId}`,
+      );
+    }
+
+    const newEndDate = new Date(licence.endDate);
+    newEndDate.setMonth(newEndDate.getMonth() + dto.months);
+
+    const updated = await this.prisma.licence.update({
+      where: { stationId },
+      data: { endDate: newEndDate },
+    });
+
+    await this.auditLogService.log({
+      stationId,
+      userId: adminUserId,
+      action: 'EXTEND_LICENCE',
+      entityType: 'Licence',
+      entityId: licence.id,
+      oldValue: {
+        endDate: licence.endDate,
+      } as unknown as Prisma.InputJsonValue,
+      newValue: {
+        endDate: newEndDate,
+        monthsAdded: dto.months,
+      } as unknown as Prisma.InputJsonValue,
+    });
+
+    this.logger.log(
+      `Licence prolongée — station ${stationId} — +${dto.months} mois`,
+    );
+    return updated;
+  }
+
+  // ═══════════════════════════════════════
+  // STATS ADMIN
+  // ═══════════════════════════════════════
+
+  async getAdminStats(): Promise<{
+    total: number;
+    active: number;
+    expired: number;
+    suspended: number;
+    expiringSoon: number;
+  }> {
+    const [total, active, expired, suspended] = await Promise.all([
+      this.prisma.licence.count(),
+      this.prisma.licence.count({ where: { status: LicenceStatus.ACTIVE } }),
+      this.prisma.licence.count({ where: { status: LicenceStatus.EXPIRED } }),
+      this.prisma.licence.count({
+        where: { status: LicenceStatus.SUSPENDED },
+      }),
+    ]);
+
+    const sevenDays = new Date();
+    sevenDays.setDate(sevenDays.getDate() + 7);
+    const expiringSoon = await this.prisma.licence.count({
+      where: {
+        status: LicenceStatus.ACTIVE,
+        endDate: { lte: sevenDays, gte: new Date() },
+      },
+    });
+
+    return { total, active, expired, suspended, expiringSoon };
+  }
+
+  // ═══════════════════════════════════════
+  // QUOTAS
+  // ═══════════════════════════════════════
+
+  async checkStationQuota(): Promise<void> {
+    const activeStations = await this.prisma.station.count({
+      where: { isActive: true },
+    });
+
+    const licenceWithMaxStations = await this.prisma.licence.findFirst({
+      where: { status: LicenceStatus.ACTIVE },
+      orderBy: { maxStations: 'desc' },
+      select: { maxStations: true, plan: true },
+    });
+
+    if (!licenceWithMaxStations) {
+      return;
+    }
+
+    if (activeStations >= licenceWithMaxStations.maxStations) {
+      throw new ForbiddenException(
+        `Limite de stations atteinte : maximum ${licenceWithMaxStations.maxStations} stations ` +
+          `(plan ${licenceWithMaxStations.plan}). Actuellement ${activeStations} stations actives.`,
+      );
+    }
+  }
+
+  async checkQuota(
+    stationId: string,
+    resource: 'users' | 'dispensers' | 'tanks',
+  ): Promise<void> {
+    const licence = await this.prisma.licence.findUnique({
+      where: { stationId },
+    });
+
+    if (!licence || licence.status !== LicenceStatus.ACTIVE) {
+      return;
+    }
+
+    let current = 0;
+    let max = 0;
+    let label = '';
+
+    switch (resource) {
+      case 'users':
+        current = await this.prisma.user.count({
+          where: {
+            stationId,
+            isActive: true,
+            role: { not: 'SUPER_ADMIN' },
+          },
+        });
+        max = licence.maxUsers;
+        label = 'utilisateurs';
+        break;
+      case 'dispensers':
+        current = await this.prisma.dispenser.count({
+          where: { stationId, isActive: true },
+        });
+        max = licence.maxDispensers;
+        label = 'distributeurs';
+        break;
+      case 'tanks':
+        current = await this.prisma.tank.count({
+          where: { stationId, isActive: true },
+        });
+        max = licence.maxTanks;
+        label = 'cuves';
+        break;
+    }
+
+    if (current >= max) {
+      throw new ForbiddenException(
+        `Limite de ${label} atteinte : maximum ${max} (plan ${licence.plan}). Actuellement ${current}.`,
+      );
+    }
+  }
+
+  async checkFeature(
+    stationId: string,
+    feature: string,
+  ): Promise<boolean> {
+    const licence = await this.prisma.licence.findUnique({
+      where: { stationId },
+    });
+
+    if (!licence || licence.status !== LicenceStatus.ACTIVE) {
+      return false;
+    }
+
+    const features = licence.features as Record<string, boolean>;
+    return features[feature] === true;
+  }
+
+  // ═══════════════════════════════════════
+  // EXPIRATION PROCESSING (CRON)
+  // ═══════════════════════════════════════
 
   async getExpiringLicences(days: number = 7): Promise<Licence[]> {
     const now = new Date();
@@ -332,19 +526,11 @@ export class LicenceService {
     return this.prisma.licence.findMany({
       where: {
         status: LicenceStatus.ACTIVE,
-        endDate: {
-          gte: now,
-          lte: futureDate,
-        },
+        endDate: { gte: now, lte: futureDate },
       },
       include: {
         station: {
-          select: {
-            id: true,
-            name: true,
-            city: true,
-            email: true,
-          },
+          select: { id: true, name: true, city: true, email: true },
         },
       },
       orderBy: { endDate: 'asc' },
@@ -352,23 +538,14 @@ export class LicenceService {
   }
 
   async getExpiredLicences(): Promise<Licence[]> {
-    const now = new Date();
-
     return this.prisma.licence.findMany({
       where: {
         status: LicenceStatus.ACTIVE,
-        endDate: {
-          lt: now,
-        },
+        endDate: { lt: new Date() },
       },
       include: {
         station: {
-          select: {
-            id: true,
-            name: true,
-            city: true,
-            email: true,
-          },
+          select: { id: true, name: true, city: true, email: true },
         },
       },
     });
@@ -383,17 +560,12 @@ export class LicenceService {
 
     const result = await this.prisma.licence.updateMany({
       where: {
-        id: {
-          in: expiredLicences.map((l) => l.id),
-        },
+        id: { in: expiredLicences.map((l) => l.id) },
       },
-      data: {
-        status: LicenceStatus.EXPIRED,
-      },
+      data: { status: LicenceStatus.EXPIRED },
     });
 
     this.logger.warn(`${result.count} licences marquées comme expirées`);
-
     return result.count;
   }
 }

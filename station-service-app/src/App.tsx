@@ -12,7 +12,6 @@ import {
   NewSalePage,
   EndShiftPage,
   CashRegisterPage,
-  PlaceholderPage,
   ProfilePage,
 } from '@/pages';
 import {
@@ -51,6 +50,7 @@ import {
 } from '@/pages/operations';
 import { DebtsPage, DebtDetailPage, NewDebtPage } from '@/pages/debts';
 import { AlertsPage, AlertDetailPage } from '@/pages/alerts';
+import { AdminClientsPage } from '@/pages/admin';
 import { useAuthStore } from '@/stores/authStore';
 
 // Protected Route wrapper with role check
@@ -252,8 +252,8 @@ function App() {
           {/* Profile */}
           <Route path="/profil" element={<ProfilePage />} />
 
-          {/* Admin only */}
-          <Route path="/admin/licences" element={<PlaceholderPage title="Gestion des Licences" />} />
+          {/* Admin only — Super Admin */}
+          <Route path="/admin/clients" element={<AdminClientsPage />} />
         </Route>
 
         {/* Default redirect */}

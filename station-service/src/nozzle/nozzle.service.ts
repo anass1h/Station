@@ -115,6 +115,11 @@ export class NozzleService {
       throw new NotFoundException(`Pistolet avec l'ID ${id} non trouvé`);
     }
 
+    // Masquer les pistolets désactivés
+    if (!nozzle.isActive) {
+      throw new NotFoundException(`Pistolet avec l'ID ${id} non trouvé`);
+    }
+
     // Vérification multi-tenant via dispenser.stationId
     if (userStationId && nozzle.dispenser.stationId !== userStationId) {
       throw new NotFoundException(`Pistolet avec l'ID ${id} non trouvé`);

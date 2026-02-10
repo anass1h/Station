@@ -74,6 +74,11 @@ export class UserService {
       throw new NotFoundException(`Utilisateur avec l'ID ${id} non trouve`);
     }
 
+    // Masquer les utilisateurs désactivés
+    if (!user.isActive) {
+      throw new NotFoundException(`Utilisateur avec l'ID ${id} non trouve`);
+    }
+
     return user;
   }
 

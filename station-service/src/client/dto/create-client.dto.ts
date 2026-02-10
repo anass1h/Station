@@ -6,9 +6,13 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
+  MaxLength,
   Min,
 } from 'class-validator';
 import { ClientType } from '@prisma/client';
+import { MOROCCAN_REGEX, FORMAT_REGEX } from '../../common/constants/index.js';
+import { RequireForB2B } from '../../common/validators/index.js';
 
 export class CreateClientDto {
   @ApiProperty({
@@ -32,6 +36,8 @@ export class CreateClientDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(150)
+  @RequireForB2B()
   companyName?: string;
 
   @ApiPropertyOptional({
@@ -40,30 +46,35 @@ export class CreateClientDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   contactName?: string;
 
   @ApiPropertyOptional({
-    description: 'Identifiant Commun Entreprise (ICE)',
+    description: 'ICE (15 chiffres)',
     example: '001234567000089',
   })
   @IsOptional()
   @IsString()
+  @Matches(MOROCCAN_REGEX.ICE, { message: MOROCCAN_REGEX.ICE_MESSAGE })
+  @RequireForB2B()
   ice?: string;
 
   @ApiPropertyOptional({
-    description: 'Identifiant Fiscal',
+    description: 'IF (8 chiffres)',
     example: '12345678',
   })
   @IsOptional()
   @IsString()
+  @Matches(MOROCCAN_REGEX.TAX_ID, { message: MOROCCAN_REGEX.TAX_ID_MESSAGE })
   taxId?: string;
 
   @ApiPropertyOptional({
-    description: 'Registre de Commerce',
-    example: 'RC-CASA-123456',
+    description: 'RC',
+    example: '123456',
   })
   @IsOptional()
   @IsString()
+  @Matches(MOROCCAN_REGEX.RC, { message: MOROCCAN_REGEX.RC_MESSAGE })
   rc?: string;
 
   @ApiPropertyOptional({
@@ -72,14 +83,16 @@ export class CreateClientDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   address?: string;
 
   @ApiPropertyOptional({
     description: 'Téléphone',
-    example: '+212 522 123456',
+    example: '+212522123456',
   })
   @IsOptional()
   @IsString()
+  @Matches(FORMAT_REGEX.PHONE_MA, { message: FORMAT_REGEX.PHONE_MA_MESSAGE })
   phone?: string;
 
   @ApiPropertyOptional({

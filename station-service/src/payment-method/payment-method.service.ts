@@ -60,6 +60,13 @@ export class PaymentMethodService {
       );
     }
 
+    // Masquer les moyens de paiement désactivés
+    if (!paymentMethod.isActive) {
+      throw new NotFoundException(
+        `Moyen de paiement avec l'ID ${id} non trouvé`,
+      );
+    }
+
     return paymentMethod;
   }
 

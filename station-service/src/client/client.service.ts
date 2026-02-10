@@ -96,6 +96,11 @@ export class ClientService {
       throw new NotFoundException(`Client avec l'ID ${id} non trouvé`);
     }
 
+    // Masquer les clients désactivés
+    if (!client.isActive) {
+      throw new NotFoundException(`Client avec l'ID ${id} non trouvé`);
+    }
+
     // Vérification multi-tenant
     if (userStationId && client.stationId !== userStationId) {
       throw new NotFoundException(`Client avec l'ID ${id} non trouvé`);

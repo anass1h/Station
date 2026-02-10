@@ -43,6 +43,12 @@ export class FuelTypeService {
       );
     }
 
+    if (!fuelType.isActive) {
+      throw new NotFoundException(
+        `Type de carburant avec l'ID ${id} non trouvé`,
+      );
+    }
+
     return fuelType;
   }
 

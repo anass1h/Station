@@ -6,6 +6,7 @@ import {
   IsPositive,
   IsString,
   IsUUID,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -29,6 +30,7 @@ export class CreateDeliveryDto {
     example: 'BL-2024-001234',
   })
   @IsString()
+  @MaxLength(50)
   deliveryNoteNumber!: string;
 
   @ApiProperty({

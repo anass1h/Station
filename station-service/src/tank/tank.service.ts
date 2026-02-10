@@ -97,6 +97,11 @@ export class TankService {
       throw new NotFoundException(`Cuve avec l'ID ${id} non trouvée`);
     }
 
+    // Masquer les cuves désactivées
+    if (!tank.isActive) {
+      throw new NotFoundException(`Cuve avec l'ID ${id} non trouvée`);
+    }
+
     // Vérification multi-tenant
     if (userStationId && tank.stationId !== userStationId) {
       throw new NotFoundException(`Cuve avec l'ID ${id} non trouvée`);

@@ -3,9 +3,11 @@ import {
   IsEmail,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { MOROCCAN_REGEX, FORMAT_REGEX } from '../../common/constants/index.js';
 
 export class CreateStationDto {
   @ApiProperty({
@@ -33,11 +35,12 @@ export class CreateStationDto {
   city!: string;
 
   @ApiPropertyOptional({
-    description: 'Numéro de téléphone',
-    example: '+212 522 123456',
+    description: 'Téléphone',
+    example: '+212522123456',
   })
   @IsOptional()
   @IsString()
+  @Matches(FORMAT_REGEX.PHONE_MA, { message: FORMAT_REGEX.PHONE_MA_MESSAGE })
   phone?: string;
 
   @ApiPropertyOptional({
@@ -49,38 +52,38 @@ export class CreateStationDto {
   email?: string;
 
   @ApiPropertyOptional({
-    description: 'Identifiant Commun Entreprise (ICE)',
+    description: 'ICE (15 chiffres)',
     example: '001234567000012',
   })
   @IsOptional()
   @IsString()
-  @MaxLength(50)
+  @Matches(MOROCCAN_REGEX.ICE, { message: MOROCCAN_REGEX.ICE_MESSAGE })
   ice?: string;
 
   @ApiPropertyOptional({
-    description: 'Identifiant Fiscal (IF)',
+    description: 'IF (8 chiffres)',
     example: '12345678',
   })
   @IsOptional()
   @IsString()
-  @MaxLength(50)
+  @Matches(MOROCCAN_REGEX.TAX_ID, { message: MOROCCAN_REGEX.TAX_ID_MESSAGE })
   taxId?: string;
 
   @ApiPropertyOptional({
-    description: 'Registre du Commerce (RC)',
+    description: 'RC (1-10 chiffres)',
     example: '123456',
   })
   @IsOptional()
   @IsString()
-  @MaxLength(50)
+  @Matches(MOROCCAN_REGEX.RC, { message: MOROCCAN_REGEX.RC_MESSAGE })
   rc?: string;
 
   @ApiPropertyOptional({
-    description: 'Numéro de patente',
+    description: 'Patente',
     example: '12345678',
   })
   @IsOptional()
   @IsString()
-  @MaxLength(50)
+  @Matches(MOROCCAN_REGEX.PATENTE, { message: MOROCCAN_REGEX.PATENTE_MESSAGE })
   patente?: string;
 }

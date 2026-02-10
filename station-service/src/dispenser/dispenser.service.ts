@@ -86,6 +86,11 @@ export class DispenserService {
       throw new NotFoundException(`Distributeur avec l'ID ${id} non trouvé`);
     }
 
+    // Masquer les distributeurs désactivés
+    if (!dispenser.isActive) {
+      throw new NotFoundException(`Distributeur avec l'ID ${id} non trouvé`);
+    }
+
     // Vérification multi-tenant
     if (userStationId && dispenser.stationId !== userStationId) {
       throw new NotFoundException(`Distributeur avec l'ID ${id} non trouvé`);

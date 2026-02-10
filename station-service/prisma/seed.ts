@@ -63,42 +63,63 @@ async function main() {
       name: 'Station Test Casablanca',
       address: '123 Boulevard Zerktouni',
       city: 'Casablanca',
-      phone: '+212 522 123 456',
+      phone: '+212522123456',
       email: 'station.casa@test.com',
       ice: '001234567000089',
       taxId: '12345678',
-      rc: 'RC123456',
+      rc: '123456',
       patente: 'PAT789',
       isActive: true,
     },
   });
   console.log(`   ✅ Station created: ${station.name}\n`);
 
-  // Create licence
-  console.log('📜 Creating TRIAL licence...');
+  // Create licence BETA
+  console.log('📜 Creating BETA licence...');
   const startDate = new Date();
   const endDate = new Date();
-  endDate.setDate(endDate.getDate() + 30);
+  endDate.setFullYear(endDate.getFullYear() + 1);
 
   await prisma.licence.create({
     data: {
       stationId: station.id,
-      plan: LicencePlan.TRIAL,
+      plan: LicencePlan.BETA,
       status: LicenceStatus.ACTIVE,
       startDate,
       endDate,
-      maxUsers: 10,
-      maxDispensers: 6,
+      maxUsers: 99,
+      maxDispensers: 99,
+      maxTanks: 99,
+      maxStations: 10,
+      gracePeriodDays: 30,
       features: {
-        invoicing: true,
-        reports: true,
-        multiStation: false,
-        api: false,
-        support: 'email',
+        shifts: true,
+        fuelSales: true,
+        cashPayments: true,
+        cardPayments: true,
+        fuelVouchers: true,
+        dashboardBasic: true,
+        dashboardAdvanced: true,
+        dashboardGlobal: true,
+        invoicingB2C: true,
+        invoicingB2B: true,
+        creditNotes: true,
+        creditClients: true,
+        reportsBasic: true,
+        reportsPdf: true,
+        reportsExcel: true,
+        reportsBi: true,
+        lowStockAlerts: true,
+        maintenancePreventive: true,
+        multiStation: true,
+        apiAccess: true,
+        webhooks: true,
+        offlineMode: true,
+        dgiCompliance: true,
       },
     },
   });
-  console.log(`   ✅ Licence created\n`);
+  console.log(`   ✅ BETA Licence created (1 year)\n`);
 
   // Create Payment Methods
   console.log('💳 Creating payment methods...');
@@ -147,7 +168,7 @@ async function main() {
       passwordHash: await hashPassword('Admin123!'),
       firstName: 'Super',
       lastName: 'Admin',
-      phone: '+212 600 000 001',
+      phone: '+212600000001',
       role: UserRole.SUPER_ADMIN,
       isActive: true,
     },
@@ -162,7 +183,7 @@ async function main() {
       pinCodeHash: await hashPinCode('123456'),
       firstName: 'Mohammed',
       lastName: 'Alami',
-      phone: '+212 600 000 002',
+      phone: '+212600000002',
       role: UserRole.GESTIONNAIRE,
       isActive: true,
     },
@@ -175,7 +196,7 @@ async function main() {
       pinCodeHash: await hashPinCode('654321'),
       firstName: 'Ahmed',
       lastName: 'Benali',
-      phone: '+212 600 000 003',
+      phone: '+212600000003',
       role: UserRole.POMPISTE,
       isActive: true,
     },
@@ -392,7 +413,7 @@ async function main() {
     data: {
       name: 'AFRIQUIA',
       contactName: 'Hassan Bennani',
-      phone: '+212 522 456 789',
+      phone: '+212522456789',
       email: 'contact@afriquia.ma',
       address: 'Zone industrielle Casablanca',
       isActive: true,
@@ -403,7 +424,7 @@ async function main() {
     data: {
       name: 'SHELL Maroc',
       contactName: 'Rachid Mansouri',
-      phone: '+212 522 987 654',
+      phone: '+212522987654',
       email: 'commandes@shell.ma',
       address: 'Casablanca Marina',
       isActive: true,
@@ -421,9 +442,9 @@ async function main() {
       contactName: 'Omar Tazi',
       ice: '002345678000090',
       taxId: '23456789',
-      rc: 'RC234567',
+      rc: '234567',
       address: '45 Zone Industrielle, Casablanca',
-      phone: '+212 522 111 222',
+      phone: '+212522111222',
       email: 'contact@transport-atlas.ma',
       creditLimit: 50000,
       currentBalance: 12500,
@@ -440,7 +461,7 @@ async function main() {
       contactName: 'Fatima Alaoui',
       ice: '003456789000091',
       address: '12 Rue de l\'Industrie, Rabat',
-      phone: '+212 537 333 444',
+      phone: '+212537333444',
       email: 'facturation@slm.ma',
       creditLimit: 30000,
       currentBalance: 5600,
@@ -456,7 +477,7 @@ async function main() {
       companyName: 'Taxi Services Express',
       contactName: 'Khalid Benjelloun',
       address: 'Gare Routière Casa',
-      phone: '+212 661 555 666',
+      phone: '+212661555666',
       creditLimit: 10000,
       currentBalance: 8500,
       paymentTermDays: 15,
@@ -469,7 +490,7 @@ async function main() {
       stationId: station.id,
       clientType: ClientType.B2C_REGISTERED,
       contactName: 'Nadia Chraibi',
-      phone: '+212 662 777 888',
+      phone: '+212662777888',
       creditLimit: 5000,
       currentBalance: 0,
       isActive: true,
@@ -484,7 +505,7 @@ async function main() {
       contactName: 'Mehdi Lahrichi',
       ice: '004567890000092',
       address: 'Chantier Ain Sebaa',
-      phone: '+212 522 999 000',
+      phone: '+212522999000',
       creditLimit: 100000,
       currentBalance: 45000,
       paymentTermDays: 60,
