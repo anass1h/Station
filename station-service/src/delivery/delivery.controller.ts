@@ -6,7 +6,6 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,7 +16,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles, CurrentUser } from '../auth/decorators/index.js';
 import { StationScope } from '../common/decorators/index.js';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy.js';
@@ -26,7 +24,6 @@ import { CreateDeliveryDto } from './dto/index.js';
 
 @ApiTags('deliveries')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('deliveries')
 export class DeliveryController {
   constructor(private readonly deliveryService: DeliveryService) {}

@@ -4,7 +4,6 @@ import {
   Param,
   ParseUUIDPipe,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -15,14 +14,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles } from '../auth/decorators/index.js';
 import { AuditLogService } from './audit-log.service.js';
 import { QueryAuditLogDto } from './dto/index.js';
 
 @ApiTags('audit-logs')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('audit-logs')
 export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}

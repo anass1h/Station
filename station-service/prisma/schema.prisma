@@ -116,6 +116,11 @@ model User {
   role         UserRole
   isActive     Boolean   @default(true)
   lastLogin    DateTime?
+
+  // Verrouillage de compte après tentatives échouées
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

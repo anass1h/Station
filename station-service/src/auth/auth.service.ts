@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -13,12 +14,15 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma';
 import { AuditLogService } from '../audit-log/index.js';
+import { RATE_LIMIT_CONSTANTS } from '../common/constants/index.js';
 import {
   RegisterDto,
   AuthResponseDto,
   AuthUserDto,
   LoginBadgeDto,
+  SetupAdminDto,
 } from './dto';
+import type { AuthenticatedUser } from './strategies/index.js';
 
 @Injectable()
 export class AuthService {
@@ -26,6 +30,11 @@ export class AuthService {
   private readonly BCRYPT_ROUNDS = 10;
   private readonly ACCESS_TOKEN_EXPIRES_IN: number; // seconds
   private readonly REFRESH_TOKEN_EXPIRES_DAYS: number;
+
+  // Hash factice pour prévenir les timing attacks
+  // Même nombre de rounds que les vrais hash pour un temps de comparaison identique
+  private readonly DUMMY_HASH =
+    '$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -85,19 +94,119 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  async validateUser(email: string, password: string): Promise<User | null> {
+  // ═══════════════════════════════════════════════════════════════
+  // VERROUILLAGE DE COMPTE
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Vérifie si le compte est verrouillé.
+   * Lance UnauthorizedException si verrouillé.
+   */
+  private async checkAccountLock(user: User): Promise<void> {
+    if (!user.lockedUntil) return;
+
+    if (user.lockedUntil > new Date()) {
+      const remainingMinutes = Math.ceil(
+        (user.lockedUntil.getTime() - Date.now()) / 60000,
+      );
+      throw new UnauthorizedException(
+        `Compte verrouillé. Réessayez dans ${remainingMinutes} minute(s).`,
+      );
+    }
+
+    // Lock expiré → réinitialiser
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+  }
+
+  /**
+   * Incrémente le compteur d'échecs et verrouille si nécessaire.
+   */
+  private async handleFailedLogin(
+    user: User,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<void> {
+    const attempts = user.failedLoginAttempts + 1;
+    const updateData: { failedLoginAttempts: number; lockedUntil?: Date } = {
+      failedLoginAttempts: attempts,
+    };
+
+    if (attempts >= RATE_LIMIT_CONSTANTS.MAX_FAILED_ATTEMPTS) {
+      const lockUntil = new Date();
+      lockUntil.setMinutes(
+        lockUntil.getMinutes() + RATE_LIMIT_CONSTANTS.LOCK_DURATION_MINUTES,
+      );
+      updateData.lockedUntil = lockUntil;
+
+      this.logger.warn(
+        `Compte ${user.email || user.badgeCode} verrouillé après ${attempts} tentatives échouées (IP: ${ipAddress})`,
+      );
+
+      // Audit : verrouillage
+      await this.auditLogService.log({
+        userId: user.id,
+        action: 'ACCOUNT_LOCKED',
+        entityType: 'User',
+        entityId: user.id,
+        newValue: {
+          reason: `${attempts} tentatives échouées`,
+          lockedUntil: updateData.lockedUntil.toISOString(),
+        },
+        ipAddress,
+        userAgent,
+        stationId: user.stationId ?? undefined,
+      });
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: updateData,
+    });
+  }
+
+  /**
+   * Réinitialise le compteur d'échecs après un login réussi.
+   */
+  private async resetFailedAttempts(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // VALIDATION UTILISATEUR
+  // ═══════════════════════════════════════════════════════════════
+
+  async validateUser(
+    email: string,
+    password: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<User | null> {
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
 
     if (!user || !user.passwordHash) {
+      // ═══ TIMING ATTACK PREVENTION ═══
+      // Effectuer une comparaison factice pour que le temps de réponse
+      // soit identique que l'utilisateur existe ou non
+      await bcrypt.compare(password, this.DUMMY_HASH);
       return null;
     }
 
     // POMPISTE ne peut pas se connecter par email
     if (user.role === UserRole.POMPISTE) {
+      await bcrypt.compare(password, this.DUMMY_HASH);
       return null;
     }
+
+    // Vérifier le verrouillage
+    await this.checkAccountLock(user);
 
     const isPasswordValid = await this.comparePasswords(
       password,
@@ -105,7 +214,14 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
+      // Incrémenter les échecs
+      await this.handleFailedLogin(user, ipAddress, userAgent);
       return null;
+    }
+
+    // Réinitialiser le compteur si succès
+    if (user.failedLoginAttempts > 0) {
+      await this.resetFailedAttempts(user.id);
     }
 
     return user;
@@ -114,32 +230,52 @@ export class AuthService {
   async validateByBadge(
     badgeCode: string,
     pinCode: string,
+    ipAddress?: string,
+    userAgent?: string,
   ): Promise<User | null> {
     const user = await this.prisma.user.findUnique({
       where: { badgeCode },
     });
 
     if (!user) {
+      // ═══ TIMING ATTACK PREVENTION ═══
+      await bcrypt.compare(pinCode, this.DUMMY_HASH);
       return null;
     }
 
     // Seuls POMPISTE et GESTIONNAIRE peuvent se connecter par badge
     if (user.role === UserRole.SUPER_ADMIN) {
+      await bcrypt.compare(pinCode, this.DUMMY_HASH);
       return null;
     }
 
     if (!user.pinCodeHash) {
+      await bcrypt.compare(pinCode, this.DUMMY_HASH);
       return null;
     }
+
+    // Vérifier le verrouillage
+    await this.checkAccountLock(user);
 
     const isPinValid = await this.comparePasswords(pinCode, user.pinCodeHash);
 
     if (!isPinValid) {
+      // Incrémenter les échecs
+      await this.handleFailedLogin(user, ipAddress, userAgent);
       return null;
+    }
+
+    // Réinitialiser le compteur si succès
+    if (user.failedLoginAttempts > 0) {
+      await this.resetFailedAttempts(user.id);
     }
 
     return user;
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GESTION DES TOKENS
+  // ═══════════════════════════════════════════════════════════════
 
   async generateTokens(
     user: User,
@@ -276,6 +412,10 @@ export class AuthService {
     return result.count;
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // LOGIN
+  // ═══════════════════════════════════════════════════════════════
+
   async login(
     user: User,
     ipAddress?: string,
@@ -318,7 +458,12 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<AuthResponseDto> {
-    const user = await this.validateByBadge(dto.badgeCode, dto.pinCode);
+    const user = await this.validateByBadge(
+      dto.badgeCode,
+      dto.pinCode,
+      ipAddress,
+      userAgent,
+    );
 
     if (!user) {
       // Log failed login attempt
@@ -339,7 +484,7 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<AuthResponseDto> {
-    const user = await this.validateUser(email, password);
+    const user = await this.validateUser(email, password, ipAddress, userAgent);
 
     if (!user) {
       // Log failed login attempt
@@ -349,6 +494,10 @@ export class AuthService {
 
     return this.login(user, ipAddress, userAgent);
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // LOGOUT
+  // ═══════════════════════════════════════════════════════════════
 
   async logout(
     userId: string,
@@ -386,17 +535,137 @@ export class AuthService {
     return count;
   }
 
-  async register(dto: RegisterDto): Promise<AuthResponseDto> {
-    if (dto.role === UserRole.POMPISTE) {
-      return this.registerPompiste(dto);
+  // ═══════════════════════════════════════════════════════════════
+  // SETUP FIRST ADMIN (Endpoint public pour initialisation)
+  // ═══════════════════════════════════════════════════════════════
+
+  async setupFirstAdmin(
+    dto: SetupAdminDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<AuthResponseDto> {
+    // 1. Vérifier qu'aucun SUPER_ADMIN n'existe
+    const existingAdmin = await this.prisma.user.findFirst({
+      where: { role: UserRole.SUPER_ADMIN },
+    });
+
+    if (existingAdmin) {
+      throw new ForbiddenException(
+        'Un administrateur existe déjà. Utilisez /auth/register avec un compte authentifié.',
+      );
     }
-    if (dto.role === UserRole.GESTIONNAIRE) {
-      return this.registerGestionnaire(dto);
-    }
-    return this.registerSuperAdmin(dto);
+
+    // 2. Vérifier unicité email
+    await this.checkUniqueConstraints(dto.email, null);
+
+    // 3. Créer le SUPER_ADMIN
+    const passwordHash = await this.hashPassword(dto.password);
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        passwordHash,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        phone: dto.phone,
+        role: UserRole.SUPER_ADMIN,
+      },
+    });
+
+    // 4. Audit log
+    await this.auditLogService.log({
+      userId: user.id,
+      action: 'SYSTEM_SETUP',
+      entityType: 'User',
+      entityId: user.id,
+      newValue: { message: 'Premier SUPER_ADMIN créé via /auth/setup' },
+      ipAddress,
+      userAgent,
+    });
+
+    this.logger.warn(
+      `Premier SUPER_ADMIN créé : ${dto.email} depuis ${ipAddress}`,
+    );
+
+    return this.login(user, ipAddress, userAgent);
   }
 
-  private async registerPompiste(dto: RegisterDto): Promise<AuthResponseDto> {
+  // ═══════════════════════════════════════════════════════════════
+  // REGISTER (Protégé par JWT + Rôles)
+  // ═══════════════════════════════════════════════════════════════
+
+  async register(
+    dto: RegisterDto,
+    currentUser: AuthenticatedUser,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<AuthResponseDto> {
+    // ═══ Contrôle d'autorisation par rôle ═══
+
+    if (currentUser.role === UserRole.GESTIONNAIRE) {
+      // GESTIONNAIRE ne peut créer que des POMPISTES
+      if (dto.role !== UserRole.POMPISTE) {
+        throw new ForbiddenException(
+          'Un gestionnaire ne peut créer que des comptes POMPISTE',
+        );
+      }
+      // GESTIONNAIRE ne peut créer que pour SA station
+      if (!currentUser.stationId) {
+        throw new ForbiddenException('Gestionnaire sans station assignée');
+      }
+      // Forcer le stationId du gestionnaire (ignore ce que le client envoie)
+      dto.stationId = currentUser.stationId;
+    }
+
+    // SUPER_ADMIN peut tout créer — aucune restriction
+    // (POMPISTE n'a pas accès à cet endpoint grâce au RolesGuard)
+
+    // ═══ Vérifier que la station existe et est active ═══
+    if (dto.stationId) {
+      const station = await this.prisma.station.findUnique({
+        where: { id: dto.stationId },
+      });
+      if (!station) {
+        throw new NotFoundException(`Station ${dto.stationId} introuvable`);
+      }
+      if (!station.isActive) {
+        throw new BadRequestException(
+          `La station ${station.name} est désactivée`,
+        );
+      }
+    }
+
+    // ═══ Dispatch par rôle ═══
+    let user: User;
+    if (dto.role === UserRole.POMPISTE) {
+      user = await this.createPompiste(dto);
+    } else if (dto.role === UserRole.GESTIONNAIRE) {
+      user = await this.createGestionnaire(dto);
+    } else {
+      user = await this.createSuperAdmin(dto);
+    }
+
+    // Audit log
+    await this.auditLogService.log({
+      userId: currentUser.id,
+      action: 'CREATE',
+      entityType: 'User',
+      entityId: user.id,
+      newValue: {
+        createdUser: {
+          email: user.email,
+          role: user.role,
+          stationId: user.stationId,
+        },
+      },
+      ipAddress,
+      userAgent,
+      stationId: currentUser.stationId ?? undefined,
+    });
+
+    return this.login(user, ipAddress, userAgent);
+  }
+
+  private async createPompiste(dto: RegisterDto): Promise<User> {
     if (!dto.badgeCode || !dto.pinCode) {
       throw new BadRequestException(
         'badgeCode et pinCode sont obligatoires pour un pompiste',
@@ -416,7 +685,7 @@ export class AuthService {
       ? await this.hashPassword(dto.password)
       : null;
 
-    const user = await this.prisma.user.create({
+    return this.prisma.user.create({
       data: {
         email: dto.email || null,
         passwordHash,
@@ -429,13 +698,9 @@ export class AuthService {
         role: dto.role,
       },
     });
-
-    return this.login(user);
   }
 
-  private async registerGestionnaire(
-    dto: RegisterDto,
-  ): Promise<AuthResponseDto> {
+  private async createGestionnaire(dto: RegisterDto): Promise<User> {
     const hasEmailAuth = dto.email && dto.password;
     const hasBadgeAuth = dto.badgeCode && dto.pinCode;
 
@@ -454,7 +719,7 @@ export class AuthService {
       ? await this.hashPinCode(dto.pinCode)
       : null;
 
-    const user = await this.prisma.user.create({
+    return this.prisma.user.create({
       data: {
         email: dto.email || null,
         passwordHash,
@@ -467,11 +732,9 @@ export class AuthService {
         role: dto.role,
       },
     });
-
-    return this.login(user);
   }
 
-  private async registerSuperAdmin(dto: RegisterDto): Promise<AuthResponseDto> {
+  private async createSuperAdmin(dto: RegisterDto): Promise<User> {
     if (!dto.email || !dto.password) {
       throw new BadRequestException(
         'email et password sont obligatoires pour un super admin',
@@ -482,7 +745,7 @@ export class AuthService {
 
     const passwordHash = await this.hashPassword(dto.password);
 
-    const user = await this.prisma.user.create({
+    return this.prisma.user.create({
       data: {
         email: dto.email,
         passwordHash,
@@ -495,8 +758,6 @@ export class AuthService {
         role: dto.role,
       },
     });
-
-    return this.login(user);
   }
 
   private async checkUniqueConstraints(
@@ -523,6 +784,10 @@ export class AuthService {
       }
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // PROFIL & CHANGEMENT CREDENTIALS
+  // ═══════════════════════════════════════════════════════════════
 
   async getUserProfile(userId: string): Promise<AuthUserDto> {
     const user = await this.prisma.user.findUnique({
@@ -587,6 +852,7 @@ export class AuthService {
 
   async changePin(
     userId: string,
+    currentPin: string,
     newPin: string,
   ): Promise<{ message: string }> {
     const user = await this.prisma.user.findUnique({
@@ -598,10 +864,20 @@ export class AuthService {
     }
 
     // Only POMPISTE and GESTIONNAIRE can have PIN
-    if (user.role === 'SUPER_ADMIN') {
+    if (user.role === UserRole.SUPER_ADMIN) {
       throw new BadRequestException(
         "Les super admins n'utilisent pas de code PIN",
       );
+    }
+
+    if (!user.pinCodeHash) {
+      throw new BadRequestException('Aucun code PIN configuré pour ce compte');
+    }
+
+    // Vérifier l'ancien PIN
+    const isPinValid = await this.comparePasswords(currentPin, user.pinCodeHash);
+    if (!isPinValid) {
+      throw new UnauthorizedException('Code PIN actuel incorrect');
     }
 
     const newPinHash = await this.hashPinCode(newPin);
@@ -615,5 +891,56 @@ export class AuthService {
     await this.revokeAllUserTokens(userId);
 
     return { message: 'Code PIN modifié avec succès' };
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // DÉVERROUILLAGE DE COMPTE (Admin)
+  // ═══════════════════════════════════════════════════════════════
+
+  async unlockAccount(
+    userId: string,
+    currentUser: AuthenticatedUser,
+  ): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // GESTIONNAIRE ne peut déverrouiller que les utilisateurs de sa station
+    if (
+      currentUser.role === UserRole.GESTIONNAIRE &&
+      user.stationId !== currentUser.stationId
+    ) {
+      throw new ForbiddenException(
+        'Vous ne pouvez déverrouiller que les utilisateurs de votre station',
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+
+    this.logger.log(
+      `Compte ${user.email || user.badgeCode} déverrouillé par ${currentUser.email || currentUser.id}`,
+    );
+
+    await this.auditLogService.log({
+      userId: currentUser.id,
+      action: 'ACCOUNT_UNLOCKED',
+      entityType: 'User',
+      entityId: userId,
+      newValue: {
+        unlockedUser: user.email || user.badgeCode,
+      },
+      stationId: currentUser.stationId ?? undefined,
+    });
+
+    return {
+      message: `Compte de ${user.firstName} ${user.lastName} déverrouillé`,
+    };
   }
 }

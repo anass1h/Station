@@ -6,7 +6,6 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
   ParseUUIDPipe,
   ParseIntPipe,
   DefaultValuePipe,
@@ -25,7 +24,6 @@ import {
   ExtendLicenceDto,
   SuspendLicenceDto,
 } from './dto';
-import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles } from '../auth/decorators/index.js';
 import { CurrentUser } from '../auth/decorators/index.js';
 import { SkipStationScope } from '../common/guards/index.js';
@@ -35,7 +33,6 @@ import { Licence } from '@prisma/client';
 @ApiTags('licences')
 @SkipStationScope()
 @Controller('licences')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class LicenceController {
   constructor(private readonly licenceService: LicenceService) {}

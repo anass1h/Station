@@ -8,7 +8,6 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -19,7 +18,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles } from '../auth/decorators/index.js';
 import { StationScope } from '../common/decorators/index.js';
 import { DispenserService } from './dispenser.service.js';
@@ -27,7 +25,6 @@ import { CreateDispenserDto, UpdateDispenserDto } from './dto/index.js';
 
 @ApiTags('dispensers')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('dispensers')
 export class DispenserController {
   constructor(private readonly dispenserService: DispenserService) {}

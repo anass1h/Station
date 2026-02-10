@@ -6,7 +6,6 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,7 +16,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles, CurrentUser } from '../auth/decorators/index.js';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy.js';
 import { PriceService } from './price.service.js';
@@ -25,7 +23,6 @@ import { CreatePriceDto } from './dto/index.js';
 
 @ApiTags('prices')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('prices')
 export class PriceController {
   constructor(private readonly priceService: PriceService) {}

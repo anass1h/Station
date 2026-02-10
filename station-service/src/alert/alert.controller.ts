@@ -7,7 +7,6 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -18,7 +17,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AlertPriority, AlertStatus, AlertType, UserRole } from '@prisma/client';
-import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles, CurrentUser } from '../auth/decorators/index.js';
 import { StationScope } from '../common/decorators/index.js';
 import { PaginationDto } from '../common/dto/pagination.dto.js';
@@ -30,7 +28,6 @@ import { CreateAlertDto } from './dto/index.js';
 
 @ApiTags('alerts')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('alerts')
 export class AlertController {
   constructor(

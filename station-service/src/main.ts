@@ -3,9 +3,10 @@ import { ValidationPipe, Logger, LogLevel } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import compression from 'compression';
-import { AppModule } from './app.module';
-import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
-import { PaginationInterceptor } from './common/interceptors/pagination.interceptor';
+import { AppModule } from './app.module.js';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter.js';
+import { PaginationInterceptor } from './common/interceptors/pagination.interceptor.js';
+import { SanitizeResponseInterceptor } from './common/interceptors/sanitize-response.interceptor.js';
 
 async function bootstrap() {
   // Configuration des niveaux de log par environnement
@@ -25,12 +26,16 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
 
   // Filtre d'exception global
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // Intercepteur de pagination global
-  app.useGlobalInterceptors(new PaginationInterceptor());
+  // Intercepteurs globaux
+  app.useGlobalInterceptors(
+    new PaginationInterceptor(),
+    new SanitizeResponseInterceptor(), // Protection contre fuite de données sensibles
+  );
 
   // Security headers with Helmet
   app.use(
@@ -59,12 +64,26 @@ async function bootstrap() {
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
     ) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
+      // ═══ SÉCURITÉ : En production, refuser les requêtes sans origine ═══
       if (!origin) {
+        if (isProduction) {
+          callback(new Error('Requêtes sans origine interdites en production'));
+          return;
+        }
+        // En développement, autoriser (Postman, curl, etc.)
         callback(null, true);
         return;
       }
+
       if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        // ═══ SÉCURITÉ : Interdire le wildcard '*' en production ═══
+        if (isProduction && allowedOrigins.includes('*')) {
+          logger.error(
+            'CORS_ORIGINS contient "*" en production — ceci est une faille de sécurité !',
+          );
+          callback(new Error('Wildcard CORS interdit en production'));
+          return;
+        }
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
@@ -72,7 +91,13 @@ async function bootstrap() {
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Request-Id'],
-    exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Per-Page', 'X-Total-Pages', 'X-Request-Id'],
+    exposedHeaders: [
+      'X-Total-Count',
+      'X-Page',
+      'X-Per-Page',
+      'X-Total-Pages',
+      'X-Request-Id',
+    ],
     credentials: true,
     maxAge: 86400, // 24 hours
   });
@@ -89,7 +114,7 @@ async function bootstrap() {
       transformOptions: {
         enableImplicitConversion: true, // Convert primitive types automatically
       },
-      disableErrorMessages: configService.get('NODE_ENV') === 'production',
+      disableErrorMessages: isProduction,
     }),
   );
 
@@ -106,5 +131,33 @@ async function bootstrap() {
   logger.log(`Environment: ${configService.get('NODE_ENV', 'development')}`);
   logger.log(`Log levels: ${levels.join(', ')}`);
   logger.log(`CORS origins: ${allowedOrigins.join(', ')}`);
+
+  // ═══ Vérifications de sécurité au démarrage (production) ═══
+  if (isProduction) {
+    const jwtSecret = configService.get<string>('JWT_SECRET', '');
+    if (jwtSecret.length < 32) {
+      logger.error('JWT_SECRET trop court en production (min 32 caractères)');
+      process.exit(1);
+    }
+
+    const trivialSecrets = [
+      'secret',
+      'changeme',
+      'password',
+      'jwt_secret',
+      '123456',
+    ];
+    if (trivialSecrets.includes(jwtSecret.toLowerCase())) {
+      logger.error('JWT_SECRET trivial détecté en production');
+      process.exit(1);
+    }
+
+    if (allowedOrigins.includes('*')) {
+      logger.error('CORS_ORIGINS wildcard "*" interdit en production');
+      process.exit(1);
+    }
+
+    logger.log('✅ Vérifications de sécurité production passées');
+  }
 }
 bootstrap();

@@ -2,9 +2,11 @@ import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/index.js';
 import { HealthModule } from './health/index.js';
 import { AuthModule } from './auth/index.js';
+import { JwtAuthGuard, RolesGuard } from './auth/guards/index.js';
 import { StationModule } from './station/index.js';
 import { FuelTypeModule } from './fuel-type/index.js';
 import { TankModule } from './tank/index.js';
@@ -51,6 +53,7 @@ import { UserModule } from './user/index.js';
         ],
       }),
     }),
+    ScheduleModule.forRoot(), // Cron jobs
     PrismaModule,
     CommonModule,
     HealthModule,
@@ -77,9 +80,23 @@ import { UserModule } from './user/index.js';
     UserModule,
   ],
   providers: [
+    // ═══ Ordre des APP_GUARD (IMPORTANT) ═══
+    // 1. Throttler  — limiter avant toute logique
+    // 2. JwtAuth    — authentifier
+    // 3. Roles      — autoriser
+    // 4. StationScope — filtrer par station
+    // 5. Licence    — vérifier la licence
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
     {
       provide: APP_GUARD,

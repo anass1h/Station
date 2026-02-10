@@ -1,12 +1,22 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+} from '@nestjs/common';
 import {
   ApiOperation,
   ApiTags,
   ApiBearerAuth,
   ApiResponse,
+  ApiParam,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { AuthService } from './auth.service';
+import { UserRole } from '@prisma/client';
+import { AuthService } from './auth.service.js';
 import {
   LoginDto,
   LoginBadgeDto,
@@ -16,11 +26,12 @@ import {
   RefreshTokenDto,
   ChangePasswordDto,
   ChangePinDto,
-} from './dto';
-import { JwtAuthGuard } from './guards';
-import { CurrentUser } from './decorators';
+  SetupAdminDto,
+} from './dto/index.js';
+import { CurrentUser, Roles } from './decorators/index.js';
+import { Public } from '../common/decorators/index.js';
 import { SkipStationScope } from '../common/guards/index.js';
-import type { AuthenticatedUser } from './strategies';
+import type { AuthenticatedUser } from './strategies/index.js';
 
 interface RequestWithHeaders {
   headers: Record<string, string | string[] | undefined>;
@@ -42,7 +53,12 @@ export class AuthController {
     return request.ip || request.socket.remoteAddress || 'unknown';
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // ENDPOINTS PUBLICS (bypass JwtAuthGuard via @Public())
+  // ═══════════════════════════════════════════════════════════════
+
   @Post('login')
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 tentatives par minute
   @ApiOperation({
     summary: 'Connexion par email/password',
@@ -50,7 +66,7 @@ export class AuthController {
       'Pour GESTIONNAIRE et SUPER_ADMIN uniquement. Retourne access token et refresh token.',
   })
   @ApiResponse({ status: 200, description: 'Connexion réussie avec tokens' })
-  @ApiResponse({ status: 401, description: 'Identifiants invalides' })
+  @ApiResponse({ status: 401, description: 'Identifiants invalides ou compte verrouillé' })
   @ApiResponse({ status: 429, description: 'Trop de tentatives de connexion' })
   async login(
     @Body() dto: LoginDto,
@@ -68,6 +84,7 @@ export class AuthController {
   }
 
   @Post('login-badge')
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 tentatives par minute
   @ApiOperation({
     summary: 'Connexion par badge/PIN',
@@ -75,7 +92,7 @@ export class AuthController {
       'Pour POMPISTE et GESTIONNAIRE uniquement. Retourne access token et refresh token.',
   })
   @ApiResponse({ status: 200, description: 'Connexion réussie avec tokens' })
-  @ApiResponse({ status: 401, description: 'Badge ou PIN invalide' })
+  @ApiResponse({ status: 401, description: 'Badge ou PIN invalide ou compte verrouillé' })
   @ApiResponse({ status: 429, description: 'Trop de tentatives de connexion' })
   async loginByBadge(
     @Body() dto: LoginBadgeDto,
@@ -88,6 +105,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 tentatives par minute
   @ApiOperation({
     summary: 'Rafraîchir les tokens',
@@ -107,19 +125,56 @@ export class AuthController {
     return this.authService.refreshTokens(dto.refreshToken);
   }
 
+  @Post('setup')
+  @Public()
+  @Throttle({ default: { limit: 1, ttl: 3600000 } }) // 1 req/heure
+  @ApiOperation({
+    summary: 'Initialisation du premier administrateur',
+    description:
+      "Crée le premier SUPER_ADMIN du système. Actif uniquement si aucun SUPER_ADMIN n'existe.",
+  })
+  @ApiResponse({ status: 201, description: 'Premier administrateur créé' })
+  @ApiResponse({ status: 403, description: 'Un administrateur existe déjà' })
+  @ApiResponse({ status: 429, description: 'Trop de tentatives' })
+  async setup(
+    @Body() dto: SetupAdminDto,
+    @Req() request: RequestWithHeaders,
+  ): Promise<AuthResponseDto> {
+    const ipAddress = this.getIpAddress(request);
+    const userAgent = request.headers['user-agent'] as string | undefined;
+    return this.authService.setupFirstAdmin(dto, ipAddress, userAgent);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENDPOINTS PROTÉGÉS (JwtAuthGuard via APP_GUARD)
+  // ═══════════════════════════════════════════════════════════════
+
   @Post('register')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GESTIONNAIRE)
+  @ApiBearerAuth()
   @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 tentatives par minute
-  @ApiOperation({ summary: 'Inscription nouvel utilisateur' })
-  @ApiResponse({ status: 201, description: 'Utilisateur créé avec tokens' })
+  @ApiOperation({
+    summary: "Inscription d'un nouvel utilisateur",
+    description:
+      'SUPER_ADMIN peut créer tous les rôles. GESTIONNAIRE peut créer uniquement des POMPISTES pour sa station.',
+  })
+  @ApiResponse({ status: 201, description: 'Utilisateur créé' })
   @ApiResponse({ status: 400, description: 'Données invalides' })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  @ApiResponse({ status: 403, description: 'Permissions insuffisantes' })
   @ApiResponse({ status: 409, description: 'Email ou badge déjà utilisé' })
   @ApiResponse({ status: 429, description: "Trop de tentatives d'inscription" })
-  async register(@Body() dto: RegisterDto): Promise<AuthResponseDto> {
-    return this.authService.register(dto);
+  async register(
+    @Body() dto: RegisterDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Req() request: RequestWithHeaders,
+  ): Promise<AuthResponseDto> {
+    const ipAddress = this.getIpAddress(request);
+    const userAgent = request.headers['user-agent'] as string | undefined;
+    return this.authService.register(dto, currentUser, ipAddress, userAgent);
   }
 
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Déconnexion',
@@ -146,7 +201,6 @@ export class AuthController {
   }
 
   @Post('logout-all')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Déconnexion de tous les appareils',
@@ -174,7 +228,6 @@ export class AuthController {
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Récupérer le profil utilisateur connecté' })
   @ApiResponse({ status: 200, description: 'Profil utilisateur' })
@@ -183,7 +236,6 @@ export class AuthController {
   }
 
   @Post('change-password')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Changer le mot de passe',
@@ -208,7 +260,6 @@ export class AuthController {
   }
 
   @Post('change-pin')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Changer le code PIN',
@@ -220,10 +271,34 @@ export class AuthController {
     status: 400,
     description: 'PIN invalide ou utilisateur non autorisé',
   })
+  @ApiResponse({ status: 401, description: 'Code PIN actuel incorrect' })
   async changePin(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: ChangePinDto,
   ): Promise<{ message: string }> {
-    return this.authService.changePin(user.id, dto.newPin);
+    return this.authService.changePin(user.id, dto.currentPin, dto.newPin);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENDPOINTS ADMIN - GESTION DES COMPTES
+  // ═══════════════════════════════════════════════════════════════
+
+  @Post('unlock-account/:userId')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.GESTIONNAIRE)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Déverrouiller un compte utilisateur',
+    description:
+      'SUPER_ADMIN peut déverrouiller tout compte. GESTIONNAIRE peut déverrouiller les comptes de sa station.',
+  })
+  @ApiParam({ name: 'userId', description: "UUID de l'utilisateur à déverrouiller" })
+  @ApiResponse({ status: 200, description: 'Compte déverrouillé avec succès' })
+  @ApiResponse({ status: 403, description: 'Permissions insuffisantes' })
+  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
+  async unlockAccount(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<{ message: string }> {
+    return this.authService.unlockAccount(userId, currentUser);
   }
 }

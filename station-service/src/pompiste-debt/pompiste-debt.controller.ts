@@ -5,19 +5,15 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
   Request,
 } from '@nestjs/common';
 import { PompisteDebtService } from './pompiste-debt.service';
 import { CreateDebtDto, AddDebtPaymentDto } from './dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { StationScope } from '../common/decorators/index.js';
 import { UserRole, DebtStatus } from '@prisma/client';
 
 @Controller('pompiste-debts')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class PompisteDebtController {
   constructor(private readonly pompisteDebtService: PompisteDebtService) {}
 

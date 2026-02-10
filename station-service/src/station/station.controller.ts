@@ -7,7 +7,6 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,7 +16,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles } from '../auth/decorators/index.js';
 import { StationScope } from '../common/decorators/index.js';
 import { StationService } from './station.service.js';
@@ -25,7 +23,6 @@ import { CreateStationDto, UpdateStationDto } from './dto/index.js';
 
 @ApiTags('stations')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('stations')
 export class StationController {
   constructor(private readonly stationService: StationService) {}

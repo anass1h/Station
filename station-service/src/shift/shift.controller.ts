@@ -6,7 +6,6 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,7 +16,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { ShiftStatus, UserRole } from '@prisma/client';
-import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles, CurrentUser } from '../auth/decorators/index.js';
 import { StationScope } from '../common/decorators/index.js';
 import { PaginationDto } from '../common/dto/pagination.dto.js';
@@ -28,7 +26,6 @@ import { StartShiftDto, EndShiftDto, ValidateShiftDto } from './dto/index.js';
 
 @ApiTags('shifts')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('shifts')
 export class ShiftController {
   constructor(private readonly shiftService: ShiftService) {}

@@ -7,7 +7,6 @@ import {
   Post,
   Query,
   Request,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -18,14 +17,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles } from '../auth/decorators/index.js';
 import { CashRegisterService } from './cash-register.service.js';
 import { CloseCashRegisterDto } from './dto/index.js';
 
 @ApiTags('cash-registers')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('cash-registers')
 export class CashRegisterController {
   constructor(private readonly cashRegisterService: CashRegisterService) {}

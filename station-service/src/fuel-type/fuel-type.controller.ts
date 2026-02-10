@@ -7,7 +7,6 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,14 +16,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles } from '../auth/decorators/index.js';
 import { FuelTypeService } from './fuel-type.service.js';
 import { CreateFuelTypeDto, UpdateFuelTypeDto } from './dto/index.js';
 
 @ApiTags('fuel-types')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('fuel-types')
 export class FuelTypeController {
   constructor(private readonly fuelTypeService: FuelTypeService) {}

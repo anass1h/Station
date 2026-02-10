@@ -7,7 +7,6 @@ import {
   Post,
   Query,
   Res,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -20,7 +19,6 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { InvoiceStatus, InvoiceType, UserRole } from '@prisma/client';
-import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles } from '../auth/decorators/index.js';
 import { StationScope } from '../common/decorators/index.js';
 import { InvoiceService } from './invoice.service.js';
@@ -33,7 +31,6 @@ import {
 
 @ApiTags('invoices')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('invoices')
 export class InvoiceController {
   constructor(
