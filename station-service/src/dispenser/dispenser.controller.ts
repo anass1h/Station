@@ -21,6 +21,7 @@ import {
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles } from '../auth/decorators/index.js';
+import { StationScope } from '../common/decorators/index.js';
 import { DispenserService } from './dispenser.service.js';
 import { CreateDispenserDto, UpdateDispenserDto } from './dto/index.js';
 
@@ -37,7 +38,10 @@ export class DispenserController {
   @ApiResponse({ status: 201, description: 'Distributeur créé avec succès' })
   @ApiResponse({ status: 403, description: 'Accès refusé' })
   @ApiResponse({ status: 404, description: 'Station non trouvée' })
-  @ApiResponse({ status: 409, description: 'Référence déjà existante dans la station' })
+  @ApiResponse({
+    status: 409,
+    description: 'Référence déjà existante dans la station',
+  })
   async create(@Body() dto: CreateDispenserDto) {
     return this.dispenserService.create(dto);
   }
@@ -57,10 +61,16 @@ export class DispenserController {
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer un distributeur par son ID' })
   @ApiParam({ name: 'id', description: 'UUID du distributeur' })
-  @ApiResponse({ status: 200, description: 'Distributeur trouvé avec ses relations' })
+  @ApiResponse({
+    status: 200,
+    description: 'Distributeur trouvé avec ses relations',
+  })
   @ApiResponse({ status: 404, description: 'Distributeur non trouvé' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.dispenserService.findOne(id);
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @StationScope() stationId: string | null,
+  ) {
+    return this.dispenserService.findOne(id, stationId);
   }
 
   @Patch(':id')
@@ -70,12 +80,16 @@ export class DispenserController {
   @ApiResponse({ status: 200, description: 'Distributeur mis à jour' })
   @ApiResponse({ status: 403, description: 'Accès refusé' })
   @ApiResponse({ status: 404, description: 'Distributeur non trouvé' })
-  @ApiResponse({ status: 409, description: 'Référence déjà existante dans la station' })
+  @ApiResponse({
+    status: 409,
+    description: 'Référence déjà existante dans la station',
+  })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateDispenserDto,
+    @StationScope() stationId: string | null,
   ) {
-    return this.dispenserService.update(id, dto);
+    return this.dispenserService.update(id, dto, stationId);
   }
 
   @Delete(':id')
@@ -83,10 +97,16 @@ export class DispenserController {
   @ApiOperation({ summary: 'Désactiver un distributeur (soft delete)' })
   @ApiParam({ name: 'id', description: 'UUID du distributeur' })
   @ApiResponse({ status: 200, description: 'Distributeur désactivé' })
-  @ApiResponse({ status: 403, description: 'Accès refusé - SUPER_ADMIN uniquement' })
+  @ApiResponse({
+    status: 403,
+    description: 'Accès refusé - SUPER_ADMIN uniquement',
+  })
   @ApiResponse({ status: 404, description: 'Distributeur non trouvé' })
-  async remove(@Param('id', ParseUUIDPipe) id: string) {
-    await this.dispenserService.remove(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @StationScope() stationId: string | null,
+  ) {
+    await this.dispenserService.remove(id, stationId);
     return { message: 'Distributeur désactivé avec succès' };
   }
 }

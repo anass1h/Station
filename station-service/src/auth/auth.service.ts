@@ -52,11 +52,16 @@ export class AuthService {
     const num = parseInt(match[1], 10);
     const unit = match[2];
     switch (unit) {
-      case 's': return num;
-      case 'm': return num * 60;
-      case 'h': return num * 60 * 60;
-      case 'd': return num * 60 * 60 * 24;
-      default: return 900;
+      case 's':
+        return num;
+      case 'm':
+        return num * 60;
+      case 'h':
+        return num * 60 * 60;
+      case 'd':
+        return num * 60 * 60 * 24;
+      default:
+        return 900;
     }
   }
 
@@ -136,7 +141,9 @@ export class AuthService {
     return user;
   }
 
-  async generateTokens(user: User): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
+  async generateTokens(
+    user: User,
+  ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
     const payload = {
       sub: user.id,
       email: user.email || user.badgeCode,
@@ -188,7 +195,9 @@ export class AuthService {
     if (storedToken.revokedAt) {
       // Possible token reuse attack - revoke all user tokens
       await this.revokeAllUserTokens(storedToken.userId);
-      this.logger.warn(`Possible token reuse attack detected for user ${storedToken.userId}`);
+      this.logger.warn(
+        `Possible token reuse attack detected for user ${storedToken.userId}`,
+      );
       throw new UnauthorizedException('Refresh token révoqué');
     }
 
@@ -250,17 +259,16 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    this.logger.log(`Revoked ${result.count} refresh tokens for user ${userId}`);
+    this.logger.log(
+      `Revoked ${result.count} refresh tokens for user ${userId}`,
+    );
     return result.count;
   }
 
   async cleanExpiredTokens(): Promise<number> {
     const result = await this.prisma.refreshToken.deleteMany({
       where: {
-        OR: [
-          { expiresAt: { lt: new Date() } },
-          { revokedAt: { not: null } },
-        ],
+        OR: [{ expiresAt: { lt: new Date() } }, { revokedAt: { not: null } }],
       },
     });
 
@@ -314,7 +322,11 @@ export class AuthService {
 
     if (!user) {
       // Log failed login attempt
-      await this.auditLogService.logLoginFailed(dto.badgeCode, ipAddress, userAgent);
+      await this.auditLogService.logLoginFailed(
+        dto.badgeCode,
+        ipAddress,
+        userAgent,
+      );
       throw new UnauthorizedException('Badge ou code PIN incorrect');
     }
 
@@ -350,7 +362,12 @@ export class AuthService {
       await this.revokeRefreshToken(refreshToken);
     }
 
-    await this.auditLogService.logLogout(userId, ipAddress, userAgent, stationId);
+    await this.auditLogService.logLogout(
+      userId,
+      ipAddress,
+      userAgent,
+      stationId,
+    );
   }
 
   async logoutAll(
@@ -360,7 +377,12 @@ export class AuthService {
     stationId?: string,
   ): Promise<number> {
     const count = await this.revokeAllUserTokens(userId);
-    await this.auditLogService.logLogout(userId, ipAddress, userAgent, stationId);
+    await this.auditLogService.logLogout(
+      userId,
+      ipAddress,
+      userAgent,
+      stationId,
+    );
     return count;
   }
 
@@ -419,7 +441,7 @@ export class AuthService {
 
     if (!hasEmailAuth && !hasBadgeAuth) {
       throw new BadRequestException(
-        'Au moins une méthode d\'authentification requise: (email + password) ou (badgeCode + pinCode)',
+        "Au moins une méthode d'authentification requise: (email + password) ou (badgeCode + pinCode)",
       );
     }
 
@@ -486,7 +508,9 @@ export class AuthService {
         where: { email },
       });
       if (existingEmail) {
-        throw new ConflictException('Un utilisateur avec cet email existe déjà');
+        throw new ConflictException(
+          'Un utilisateur avec cet email existe déjà',
+        );
       }
     }
 
@@ -534,7 +558,9 @@ export class AuthService {
     }
 
     if (!user.passwordHash) {
-      throw new BadRequestException('Ce compte n\'a pas de mot de passe configuré');
+      throw new BadRequestException(
+        "Ce compte n'a pas de mot de passe configuré",
+      );
     }
 
     const isPasswordValid = await this.comparePasswords(
@@ -559,7 +585,10 @@ export class AuthService {
     return { message: 'Mot de passe modifié avec succès' };
   }
 
-  async changePin(userId: string, newPin: string): Promise<{ message: string }> {
+  async changePin(
+    userId: string,
+    newPin: string,
+  ): Promise<{ message: string }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -570,7 +599,9 @@ export class AuthService {
 
     // Only POMPISTE and GESTIONNAIRE can have PIN
     if (user.role === 'SUPER_ADMIN') {
-      throw new BadRequestException('Les super admins n\'utilisent pas de code PIN');
+      throw new BadRequestException(
+        "Les super admins n'utilisent pas de code PIN",
+      );
     }
 
     const newPinHash = await this.hashPinCode(newPin);

@@ -6,8 +6,18 @@ import {
 import { Sale } from '@prisma/client';
 import { PrismaService } from '../prisma/index.js';
 import { SaleValidator } from '../common/validators/index.js';
-import { PriceCalculator, MarginCalculator } from '../common/calculators/index.js';
+import {
+  PriceCalculator,
+  MarginCalculator,
+} from '../common/calculators/index.js';
 import { CreateSaleDto } from './dto/index.js';
+import { PaginationDto } from '../common/dto/pagination.dto.js';
+import {
+  PaginatedResponse,
+  buildPaginatedResponse,
+  toPrismaQuery,
+  toDateRangeFilter,
+} from '../common/interfaces/paginated-result.interface.js';
 
 @Injectable()
 export class SaleService {
@@ -55,17 +65,25 @@ export class SaleService {
       return { unitMargin: 0, totalMargin: 0, marginPercent: 0 };
     }
 
-    const sellingPriceHT = this.priceCalculator.calculateHT(Number(sale.unitPrice));
+    const sellingPriceHT = this.priceCalculator.calculateHT(
+      Number(sale.unitPrice),
+    );
     const purchasePrice = currentPrice.purchasePrice;
 
     return {
-      unitMargin: this.marginCalculator.calculateUnitMargin(sellingPriceHT, purchasePrice),
+      unitMargin: this.marginCalculator.calculateUnitMargin(
+        sellingPriceHT,
+        purchasePrice,
+      ),
       totalMargin: this.marginCalculator.calculateTotalMargin(
         Number(sale.quantity),
         sellingPriceHT,
         purchasePrice,
       ),
-      marginPercent: this.marginCalculator.calculateMarginPercent(sellingPriceHT, purchasePrice),
+      marginPercent: this.marginCalculator.calculateMarginPercent(
+        sellingPriceHT,
+        purchasePrice,
+      ),
     };
   }
 
@@ -98,7 +116,9 @@ export class SaleService {
     });
 
     if (!fuelType) {
-      throw new NotFoundException(`Type de carburant avec l'ID ${dto.fuelTypeId} non trouvé`);
+      throw new NotFoundException(
+        `Type de carburant avec l'ID ${dto.fuelTypeId} non trouvé`,
+      );
     }
 
     // Vérifier que le client existe si clientId fourni
@@ -108,13 +128,18 @@ export class SaleService {
       });
 
       if (!client) {
-        throw new NotFoundException(`Client avec l'ID ${dto.clientId} non trouvé`);
+        throw new NotFoundException(
+          `Client avec l'ID ${dto.clientId} non trouvé`,
+        );
       }
     }
 
     // Utiliser le calculator pour récupérer le prix actif
     const stationId = shift.nozzle.dispenser.stationId;
-    const currentPrice = await this.priceCalculator.getCurrentPrice(stationId, dto.fuelTypeId);
+    const currentPrice = await this.priceCalculator.getCurrentPrice(
+      stationId,
+      dto.fuelTypeId,
+    );
     if (!currentPrice) {
       throw new BadRequestException(
         `Aucun prix actif trouvé pour ce type de carburant dans cette station`,
@@ -123,7 +148,9 @@ export class SaleService {
 
     // Vérifier les moyens de paiement avec le validator
     for (const payment of dto.payments) {
-      const methodCheck = await this.saleValidator.validatePaymentMethod(payment.paymentMethodId);
+      const methodCheck = await this.saleValidator.validatePaymentMethod(
+        payment.paymentMethodId,
+      );
       if (!methodCheck.valid) {
         throw new BadRequestException(methodCheck.message);
       }
@@ -142,7 +169,10 @@ export class SaleService {
     const totalAmount = dto.quantity * unitPrice;
 
     // Utiliser le validator pour vérifier le total des paiements
-    const paymentCheck = this.saleValidator.validatePaymentTotal(totalAmount, dto.payments);
+    const paymentCheck = this.saleValidator.validatePaymentTotal(
+      totalAmount,
+      dto.payments,
+    );
     if (!paymentCheck.valid) {
       throw new BadRequestException(paymentCheck.message);
     }
@@ -194,7 +224,7 @@ export class SaleService {
     });
   }
 
-  async findOne(id: string): Promise<Sale> {
+  async findOne(id: string, userStationId?: string | null): Promise<Sale> {
     const sale = await this.prisma.sale.findUnique({
       where: { id },
       include: {
@@ -229,7 +259,86 @@ export class SaleService {
       throw new NotFoundException(`Vente avec l'ID ${id} non trouvée`);
     }
 
+    // Vérification multi-tenant via shift.nozzle.dispenser.stationId
+    if (
+      userStationId &&
+      sale.shift.nozzle.dispenser.stationId !== userStationId
+    ) {
+      throw new NotFoundException(`Vente avec l'ID ${id} non trouvée`);
+    }
+
     return sale;
+  }
+
+  async findAll(
+    pagination: PaginationDto,
+    stationId?: string | null,
+    filters?: {
+      dateFrom?: string;
+      dateTo?: string;
+      shiftId?: string;
+      fuelTypeId?: string;
+      clientId?: string;
+    },
+  ): Promise<PaginatedResponse<Sale>> {
+    const { page = 1, perPage = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
+    const { skip, take, orderBy } = toPrismaQuery(page, perPage, sortBy, sortOrder);
+
+    const dateFilter = toDateRangeFilter(filters?.dateFrom, filters?.dateTo);
+
+    const where = {
+      ...(stationId && {
+        shift: {
+          nozzle: {
+            dispenser: {
+              stationId,
+            },
+          },
+        },
+      }),
+      ...(dateFilter && { createdAt: dateFilter }),
+      ...(filters?.shiftId && { shiftId: filters.shiftId }),
+      ...(filters?.fuelTypeId && { fuelTypeId: filters.fuelTypeId }),
+      ...(filters?.clientId && { clientId: filters.clientId }),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.sale.findMany({
+        where,
+        include: {
+          fuelType: true,
+          client: true,
+          shift: {
+            include: {
+              pompiste: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  badgeCode: true,
+                },
+              },
+              nozzle: {
+                include: {
+                  dispenser: { include: { station: true } },
+                },
+              },
+            },
+          },
+          payments: {
+            include: {
+              paymentMethod: true,
+            },
+          },
+        },
+        orderBy,
+        skip,
+        take,
+      }),
+      this.prisma.sale.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(data, total, page, perPage);
   }
 
   async findByShift(shiftId: string): Promise<Sale[]> {
@@ -282,7 +391,7 @@ export class SaleService {
       take: limit,
     });
 
-    return sales.map(sale => ({
+    return sales.map((sale) => ({
       id: sale.id,
       soldAt: sale.soldAt,
       pompisteName: `${sale.shift.pompiste.firstName} ${sale.shift.pompiste.lastName}`,
@@ -398,10 +507,16 @@ export class SaleService {
     });
 
     const totalQuantity = sales.reduce((sum, s) => sum + Number(s.quantity), 0);
-    const totalAmount = sales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
+    const totalAmount = sales.reduce(
+      (sum, s) => sum + Number(s.totalAmount),
+      0,
+    );
 
     // Agrégation par type de carburant
-    const byFuelTypeMap = new Map<string, { name: string; quantity: number; amount: number }>();
+    const byFuelTypeMap = new Map<
+      string,
+      { name: string; quantity: number; amount: number }
+    >();
     for (const sale of sales) {
       const existing = byFuelTypeMap.get(sale.fuelTypeId) || {
         name: sale.fuelType.name,
@@ -414,7 +529,10 @@ export class SaleService {
     }
 
     // Agrégation par moyen de paiement
-    const byPaymentMethodMap = new Map<string, { name: string; amount: number }>();
+    const byPaymentMethodMap = new Map<
+      string,
+      { name: string; amount: number }
+    >();
     for (const sale of sales) {
       for (const payment of sale.payments) {
         const existing = byPaymentMethodMap.get(payment.paymentMethodId) || {
@@ -436,11 +554,13 @@ export class SaleService {
         quantity: data.quantity,
         amount: data.amount,
       })),
-      byPaymentMethod: Array.from(byPaymentMethodMap.entries()).map(([id, data]) => ({
-        paymentMethodId: id,
-        paymentMethodName: data.name,
-        amount: data.amount,
-      })),
+      byPaymentMethod: Array.from(byPaymentMethodMap.entries()).map(
+        ([id, data]) => ({
+          paymentMethodId: id,
+          paymentMethodName: data.name,
+          amount: data.amount,
+        }),
+      ),
     };
   }
 }

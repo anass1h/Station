@@ -78,7 +78,8 @@ export class StockCalculator {
     const theoretical = await this.calculateTheoreticalStock(tankId);
     const actual = Number(tank.currentLevel);
     const variance = actual - theoretical;
-    const variancePercent = theoretical !== 0 ? (variance / theoretical) * 100 : 0;
+    const variancePercent =
+      theoretical !== 0 ? (variance / theoretical) * 100 : 0;
 
     return {
       theoretical,

@@ -28,10 +28,12 @@ import {
 import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles } from '../auth/decorators/index.js';
 import { CurrentUser } from '../auth/decorators/index.js';
+import { SkipStationScope } from '../common/guards/index.js';
 import type { AuthenticatedUser } from '../auth/strategies/index.js';
 import { Licence } from '@prisma/client';
 
 @ApiTags('licences')
+@SkipStationScope()
 @Controller('licences')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
@@ -59,8 +61,16 @@ export class LicenceController {
   @Get('expiring')
   @Roles('SUPER_ADMIN')
   @ApiOperation({ summary: 'Licences expirant bientôt' })
-  @ApiQuery({ name: 'days', required: false, type: Number, description: 'Nombre de jours (défaut: 7)' })
-  @ApiResponse({ status: 200, description: 'Liste des licences expirant bientôt' })
+  @ApiQuery({
+    name: 'days',
+    required: false,
+    type: Number,
+    description: 'Nombre de jours (défaut: 7)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des licences expirant bientôt',
+  })
   async getExpiringLicences(
     @Query('days', new DefaultValuePipe(7), ParseIntPipe) days: number,
   ): Promise<Licence[]> {
@@ -86,7 +96,7 @@ export class LicenceController {
 
   @Get('station/:stationId')
   @Roles('SUPER_ADMIN')
-  @ApiOperation({ summary: 'Récupérer la licence d\'une station' })
+  @ApiOperation({ summary: "Récupérer la licence d'une station" })
   @ApiResponse({ status: 200, description: 'Licence de la station' })
   @ApiResponse({ status: 404, description: 'Licence non trouvée' })
   async findByStation(
@@ -97,7 +107,7 @@ export class LicenceController {
 
   @Get('check/:stationId')
   @Roles('GESTIONNAIRE', 'SUPER_ADMIN')
-  @ApiOperation({ summary: 'Vérifier la validité d\'une licence' })
+  @ApiOperation({ summary: "Vérifier la validité d'une licence" })
   @ApiResponse({ status: 200, description: 'Résultat de la vérification' })
   async checkLicence(
     @Param('stationId', ParseUUIDPipe) stationId: string,

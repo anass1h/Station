@@ -99,7 +99,10 @@ export class AuditLogService {
     };
   }
 
-  async findByEntity(entityType: string, entityId: string): Promise<AuditLog[]> {
+  async findByEntity(
+    entityType: string,
+    entityId: string,
+  ): Promise<AuditLog[]> {
     return this.prisma.auditLog.findMany({
       where: {
         entityType,

@@ -18,7 +18,9 @@ export class TankService {
       where: { id: dto.stationId },
     });
     if (!station) {
-      throw new NotFoundException(`Station avec l'ID ${dto.stationId} non trouvée`);
+      throw new NotFoundException(
+        `Station avec l'ID ${dto.stationId} non trouvée`,
+      );
     }
 
     // Vérifier que le type de carburant existe
@@ -26,7 +28,9 @@ export class TankService {
       where: { id: dto.fuelTypeId },
     });
     if (!fuelType) {
-      throw new NotFoundException(`Type de carburant avec l'ID ${dto.fuelTypeId} non trouvé`);
+      throw new NotFoundException(
+        `Type de carburant avec l'ID ${dto.fuelTypeId} non trouvé`,
+      );
     }
 
     // Vérifier l'unicité de la référence par station
@@ -77,7 +81,7 @@ export class TankService {
     });
   }
 
-  async findOne(id: string): Promise<Tank> {
+  async findOne(id: string, userStationId?: string | null): Promise<Tank> {
     const tank = await this.prisma.tank.findUnique({
       where: { id },
       include: {
@@ -93,11 +97,20 @@ export class TankService {
       throw new NotFoundException(`Cuve avec l'ID ${id} non trouvée`);
     }
 
+    // Vérification multi-tenant
+    if (userStationId && tank.stationId !== userStationId) {
+      throw new NotFoundException(`Cuve avec l'ID ${id} non trouvée`);
+    }
+
     return tank;
   }
 
-  async update(id: string, dto: UpdateTankDto): Promise<Tank> {
-    const tank = await this.findOne(id);
+  async update(
+    id: string,
+    dto: UpdateTankDto,
+    userStationId?: string | null,
+  ): Promise<Tank> {
+    const tank = await this.findOne(id, userStationId);
 
     // Vérifier l'unicité de la référence si modifiée
     if (dto.reference && dto.reference !== tank.reference) {
@@ -138,8 +151,8 @@ export class TankService {
     });
   }
 
-  async remove(id: string): Promise<void> {
-    await this.findOne(id);
+  async remove(id: string, userStationId?: string | null): Promise<void> {
+    await this.findOne(id, userStationId);
 
     await this.prisma.tank.update({
       where: { id },

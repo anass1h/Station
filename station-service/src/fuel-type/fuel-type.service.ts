@@ -38,7 +38,9 @@ export class FuelTypeService {
     });
 
     if (!fuelType) {
-      throw new NotFoundException(`Type de carburant avec l'ID ${id} non trouvé`);
+      throw new NotFoundException(
+        `Type de carburant avec l'ID ${id} non trouvé`,
+      );
     }
 
     return fuelType;

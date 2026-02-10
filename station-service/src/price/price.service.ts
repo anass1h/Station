@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Price } from '@prisma/client';
 import { PrismaService } from '../prisma/index.js';
 import { CreatePriceDto } from './dto/index.js';
@@ -20,7 +16,9 @@ export class PriceService {
     });
 
     if (!station) {
-      throw new NotFoundException(`Station avec l'ID ${dto.stationId} non trouvée`);
+      throw new NotFoundException(
+        `Station avec l'ID ${dto.stationId} non trouvée`,
+      );
     }
 
     // Vérifier que le type de carburant existe
@@ -29,7 +27,9 @@ export class PriceService {
     });
 
     if (!fuelType) {
-      throw new NotFoundException(`Type de carburant avec l'ID ${dto.fuelTypeId} non trouvé`);
+      throw new NotFoundException(
+        `Type de carburant avec l'ID ${dto.fuelTypeId} non trouvé`,
+      );
     }
 
     const effectiveFromDate = new Date(dto.effectiveFrom);
@@ -80,7 +80,10 @@ export class PriceService {
     return newPrice;
   }
 
-  async getCurrentPrice(stationId: string, fuelTypeId: string): Promise<Price | null> {
+  async getCurrentPrice(
+    stationId: string,
+    fuelTypeId: string,
+  ): Promise<Price | null> {
     return this.prisma.price.findFirst({
       where: {
         stationId,
@@ -101,7 +104,10 @@ export class PriceService {
     });
   }
 
-  async getPriceHistory(stationId: string, fuelTypeId: string): Promise<Price[]> {
+  async getPriceHistory(
+    stationId: string,
+    fuelTypeId: string,
+  ): Promise<Price[]> {
     // Vérifier que la station existe
     const station = await this.prisma.station.findUnique({
       where: { id: stationId },
@@ -117,7 +123,9 @@ export class PriceService {
     });
 
     if (!fuelType) {
-      throw new NotFoundException(`Type de carburant avec l'ID ${fuelTypeId} non trouvé`);
+      throw new NotFoundException(
+        `Type de carburant avec l'ID ${fuelTypeId} non trouvé`,
+      );
     }
 
     return this.prisma.price.findMany({
@@ -149,10 +157,7 @@ export class PriceService {
         stationId,
         fuelTypeId,
         effectiveFrom: { lte: date },
-        OR: [
-          { effectiveTo: { gt: date } },
-          { effectiveTo: null },
-        ],
+        OR: [{ effectiveTo: { gt: date } }, { effectiveTo: null }],
       },
       include: {
         station: true,

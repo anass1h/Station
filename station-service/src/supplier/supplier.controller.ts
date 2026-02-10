@@ -73,7 +73,10 @@ export class SupplierController {
   @ApiOperation({ summary: 'Désactiver un fournisseur (soft delete)' })
   @ApiParam({ name: 'id', description: 'UUID du fournisseur' })
   @ApiResponse({ status: 200, description: 'Fournisseur désactivé' })
-  @ApiResponse({ status: 403, description: 'Accès refusé - SUPER_ADMIN uniquement' })
+  @ApiResponse({
+    status: 403,
+    description: 'Accès refusé - SUPER_ADMIN uniquement',
+  })
   @ApiResponse({ status: 404, description: 'Fournisseur non trouvé' })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.supplierService.remove(id);

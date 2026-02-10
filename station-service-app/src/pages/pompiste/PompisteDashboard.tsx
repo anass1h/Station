@@ -36,7 +36,7 @@ export function PompisteDashboard() {
             variant="primary"
             size="lg"
             className="col-span-2 h-24 text-lg"
-            onClick={() => navigate('/pompiste/shift')}
+            onClick={() => navigate('/pompiste/demarrer-shift')}
           >
             <PlayIcon className="h-8 w-8 mr-3" />
             Demarrer un Shift
@@ -47,7 +47,7 @@ export function PompisteDashboard() {
               variant="success"
               size="lg"
               className="h-24 text-lg flex-col gap-2"
-              onClick={() => navigate('/pompiste/vente')}
+              onClick={() => navigate('/pompiste/nouvelle-vente')}
             >
               <ShoppingCartIcon className="h-8 w-8" />
               Nouvelle Vente
@@ -56,7 +56,7 @@ export function PompisteDashboard() {
               variant="warning"
               size="lg"
               className="h-24 text-lg flex-col gap-2"
-              onClick={() => navigate('/pompiste/caisse')}
+              onClick={() => navigate('/pompiste/cloture-caisse')}
             >
               <BanknotesIcon className="h-8 w-8" />
               Cloture Caisse

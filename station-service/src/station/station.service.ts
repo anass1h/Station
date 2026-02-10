@@ -13,14 +13,17 @@ export class StationService {
     });
   }
 
-  async findAll(): Promise<Station[]> {
+  async findAll(stationId?: string | null): Promise<Station[]> {
     return this.prisma.station.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(stationId && { id: stationId }),
+      },
       orderBy: { name: 'asc' },
     });
   }
 
-  async findOne(id: string): Promise<Station> {
+  async findOne(id: string, userStationId?: string | null): Promise<Station> {
     const station = await this.prisma.station.findUnique({
       where: { id },
       include: {
@@ -40,11 +43,20 @@ export class StationService {
       throw new NotFoundException(`Station avec l'ID ${id} non trouvée`);
     }
 
+    // Vérification multi-tenant : retourner 404 pour ne pas révéler l'existence
+    if (userStationId && station.id !== userStationId) {
+      throw new NotFoundException(`Station avec l'ID ${id} non trouvée`);
+    }
+
     return station;
   }
 
-  async update(id: string, dto: UpdateStationDto): Promise<Station> {
-    await this.findOne(id);
+  async update(
+    id: string,
+    dto: UpdateStationDto,
+    userStationId?: string | null,
+  ): Promise<Station> {
+    await this.findOne(id, userStationId);
 
     return this.prisma.station.update({
       where: { id },
@@ -52,8 +64,8 @@ export class StationService {
     });
   }
 
-  async remove(id: string): Promise<void> {
-    await this.findOne(id);
+  async remove(id: string, userStationId?: string | null): Promise<void> {
+    await this.findOne(id, userStationId);
 
     await this.prisma.station.update({
       where: { id },

@@ -11,6 +11,13 @@ import { PrismaService } from '../prisma/index.js';
 import { ShiftValidator } from '../common/validators/index.js';
 import { ShiftCalculator } from '../common/calculators/index.js';
 import { StartShiftDto, EndShiftDto } from './dto/index.js';
+import { PaginationDto } from '../common/dto/pagination.dto.js';
+import {
+  PaginatedResponse,
+  buildPaginatedResponse,
+  toPrismaQuery,
+  toDateRangeFilter,
+} from '../common/interfaces/paginated-result.interface.js';
 
 @Injectable()
 export class ShiftService {
@@ -34,7 +41,9 @@ export class ShiftService {
     });
 
     if (!nozzle) {
-      throw new NotFoundException(`Pistolet avec l'ID ${dto.nozzleId} non trouvé`);
+      throw new NotFoundException(
+        `Pistolet avec l'ID ${dto.nozzleId} non trouvé`,
+      );
     }
 
     if (!nozzle.isActive) {
@@ -42,7 +51,9 @@ export class ShiftService {
     }
 
     // Utiliser le validator pour vérifier qu'aucun shift n'est ouvert
-    const openShiftCheck = await this.shiftValidator.validateNoOpenShift(dto.nozzleId);
+    const openShiftCheck = await this.shiftValidator.validateNoOpenShift(
+      dto.nozzleId,
+    );
     if (!openShiftCheck.valid) {
       throw new ConflictException(openShiftCheck.message);
     }
@@ -116,14 +127,20 @@ export class ShiftService {
       userRole !== UserRole.GESTIONNAIRE &&
       userRole !== UserRole.SUPER_ADMIN
     ) {
-      const ownershipCheck = await this.shiftValidator.validateShiftOwnership(shiftId, userId);
+      const ownershipCheck = await this.shiftValidator.validateShiftOwnership(
+        shiftId,
+        userId,
+      );
       if (!ownershipCheck.valid) {
         throw new ForbiddenException(ownershipCheck.message);
       }
     }
 
     // Vérifier le status du shift
-    const statusCheck = await this.shiftValidator.validateShiftStatus(shiftId, ShiftStatus.OPEN);
+    const statusCheck = await this.shiftValidator.validateShiftStatus(
+      shiftId,
+      ShiftStatus.OPEN,
+    );
     if (!statusCheck.valid) {
       throw new BadRequestException(
         `Ce shift ne peut pas être clôturé (status actuel: ${shift.status})`,
@@ -139,7 +156,10 @@ export class ShiftService {
     }
 
     // Calculer la quantité vendue avec le calculator
-    const quantitySold = this.shiftCalculator.calculateQuantitySold(indexStart, dto.indexEnd);
+    const quantitySold = this.shiftCalculator.calculateQuantitySold(
+      indexStart,
+      dto.indexEnd,
+    );
 
     // Transaction : mettre à jour le shift et le nozzle
     const [updatedShift] = await this.prisma.$transaction([
@@ -183,9 +203,15 @@ export class ShiftService {
     return updatedShift;
   }
 
-  async validateShift(shiftId: string, _gestionnaireId: string): Promise<Shift> {
+  async validateShift(
+    shiftId: string,
+    _gestionnaireId: string,
+  ): Promise<Shift> {
     // Utiliser le validator pour vérifier le status
-    const statusCheck = await this.shiftValidator.validateShiftStatus(shiftId, ShiftStatus.CLOSED);
+    const statusCheck = await this.shiftValidator.validateShiftStatus(
+      shiftId,
+      ShiftStatus.CLOSED,
+    );
     if (!statusCheck.valid) {
       throw new BadRequestException(statusCheck.message);
     }
@@ -216,7 +242,7 @@ export class ShiftService {
     });
   }
 
-  async findOne(id: string): Promise<Shift> {
+  async findOne(id: string, userStationId?: string | null): Promise<Shift> {
     const shift = await this.prisma.shift.findUnique({
       where: { id },
       include: {
@@ -251,6 +277,11 @@ export class ShiftService {
     });
 
     if (!shift) {
+      throw new NotFoundException(`Shift avec l'ID ${id} non trouvé`);
+    }
+
+    // Vérification multi-tenant via nozzle.dispenser.stationId
+    if (userStationId && shift.nozzle.dispenser.stationId !== userStationId) {
       throw new NotFoundException(`Shift avec l'ID ${id} non trouvé`);
     }
 
@@ -362,49 +393,63 @@ export class ShiftService {
     });
   }
 
-  async findAll(filters: {
-    stationId?: string;
-    pompisteId?: string;
-    status?: ShiftStatus;
-    from?: Date;
-    to?: Date;
-  }): Promise<Shift[]> {
-    return this.prisma.shift.findMany({
-      where: {
-        ...(filters.pompisteId && { pompisteId: filters.pompisteId }),
-        ...(filters.status && { status: filters.status }),
-        ...(filters.stationId && {
+  async findAll(
+    pagination: PaginationDto,
+    stationId?: string | null,
+    filters?: {
+      dateFrom?: string;
+      dateTo?: string;
+      status?: ShiftStatus;
+      pompisteId?: string;
+      nozzleId?: string;
+    },
+  ): Promise<PaginatedResponse<Shift>> {
+    const { page = 1, perPage = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
+    const { skip, take, orderBy } = toPrismaQuery(page, perPage, sortBy, sortOrder);
+
+    const dateFilter = toDateRangeFilter(filters?.dateFrom, filters?.dateTo);
+
+    const where = {
+      ...(stationId && {
+        nozzle: {
+          dispenser: {
+            stationId,
+          },
+        },
+      }),
+      ...(dateFilter && { createdAt: dateFilter }),
+      ...(filters?.status && { status: filters.status }),
+      ...(filters?.pompisteId && { pompisteId: filters.pompisteId }),
+      ...(filters?.nozzleId && { nozzleId: filters.nozzleId }),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.shift.findMany({
+        where,
+        include: {
           nozzle: {
-            dispenser: {
-              stationId: filters.stationId,
+            include: {
+              dispenser: { include: { station: true } },
+              fuelType: true,
             },
           },
-        }),
-        ...((filters.from || filters.to) && {
-          startedAt: {
-            ...(filters.from && { gte: filters.from }),
-            ...(filters.to && { lte: filters.to }),
-          },
-        }),
-      },
-      include: {
-        nozzle: {
-          include: {
-            dispenser: { include: { station: true } },
-            fuelType: true,
+          pompiste: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              badgeCode: true,
+            },
           },
         },
-        pompiste: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            badgeCode: true,
-          },
-        },
-      },
-      orderBy: { startedAt: 'desc' },
-    });
+        orderBy,
+        skip,
+        take,
+      }),
+      this.prisma.shift.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(data, total, page, perPage);
   }
 
   async getShiftStatistics(shiftId: string): Promise<{

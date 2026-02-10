@@ -1,5 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export enum AuditAction {
@@ -22,12 +31,12 @@ export class QueryAuditLogDto {
   @IsUUID()
   userId?: string;
 
-  @ApiPropertyOptional({ description: 'Filtrer par type d\'entité' })
+  @ApiPropertyOptional({ description: "Filtrer par type d'entité" })
   @IsOptional()
   @IsString()
   entityType?: string;
 
-  @ApiPropertyOptional({ description: 'Filtrer par ID d\'entité' })
+  @ApiPropertyOptional({ description: "Filtrer par ID d'entité" })
   @IsOptional()
   @IsString()
   entityId?: string;
@@ -54,7 +63,10 @@ export class QueryAuditLogDto {
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Nombre d\'éléments par page', default: 50 })
+  @ApiPropertyOptional({
+    description: "Nombre d'éléments par page",
+    default: 50,
+  })
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()

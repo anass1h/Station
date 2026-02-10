@@ -74,7 +74,9 @@ export class LicenceService {
     });
 
     if (!station) {
-      throw new NotFoundException('Station non trouvée');
+      throw new NotFoundException(
+        `Station avec l'ID ${dto.stationId} non trouvée`,
+      );
     }
 
     // Vérifier qu'il n'y a pas déjà une licence pour cette station
@@ -141,7 +143,7 @@ export class LicenceService {
     });
 
     if (!licence) {
-      throw new NotFoundException('Licence non trouvée');
+      throw new NotFoundException(`Licence avec l'ID ${id} non trouvée`);
     }
 
     return licence;
@@ -229,7 +231,8 @@ export class LicenceService {
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.endDate !== undefined) updateData.endDate = new Date(dto.endDate);
     if (dto.maxUsers !== undefined) updateData.maxUsers = dto.maxUsers;
-    if (dto.maxDispensers !== undefined) updateData.maxDispensers = dto.maxDispensers;
+    if (dto.maxDispensers !== undefined)
+      updateData.maxDispensers = dto.maxDispensers;
 
     return this.prisma.licence.update({
       where: { id: licence.id },
@@ -278,7 +281,7 @@ export class LicenceService {
     // Vérifier si la licence n'est pas expirée
     if (licence.endDate < new Date()) {
       throw new ConflictException(
-        'Impossible de réactiver une licence expirée. Veuillez la prolonger d\'abord.',
+        "Impossible de réactiver une licence expirée. Veuillez la prolonger d'abord.",
       );
     }
 
@@ -287,7 +290,9 @@ export class LicenceService {
       data: { status: LicenceStatus.ACTIVE },
     });
 
-    this.logger.log(`Licence ${licence.id} réactivée pour station ${licence.stationId}`);
+    this.logger.log(
+      `Licence ${licence.id} réactivée pour station ${licence.stationId}`,
+    );
 
     return updatedLicence;
   }

@@ -17,7 +17,9 @@ export class DispenserService {
       where: { id: dto.stationId },
     });
     if (!station) {
-      throw new NotFoundException(`Station avec l'ID ${dto.stationId} non trouvée`);
+      throw new NotFoundException(
+        `Station avec l'ID ${dto.stationId} non trouvée`,
+      );
     }
 
     // Vérifier l'unicité de la référence par station
@@ -65,7 +67,7 @@ export class DispenserService {
     });
   }
 
-  async findOne(id: string): Promise<Dispenser> {
+  async findOne(id: string, userStationId?: string | null): Promise<Dispenser> {
     const dispenser = await this.prisma.dispenser.findUnique({
       where: { id },
       include: {
@@ -84,11 +86,20 @@ export class DispenserService {
       throw new NotFoundException(`Distributeur avec l'ID ${id} non trouvé`);
     }
 
+    // Vérification multi-tenant
+    if (userStationId && dispenser.stationId !== userStationId) {
+      throw new NotFoundException(`Distributeur avec l'ID ${id} non trouvé`);
+    }
+
     return dispenser;
   }
 
-  async update(id: string, dto: UpdateDispenserDto): Promise<Dispenser> {
-    const dispenser = await this.findOne(id);
+  async update(
+    id: string,
+    dto: UpdateDispenserDto,
+    userStationId?: string | null,
+  ): Promise<Dispenser> {
+    const dispenser = await this.findOne(id, userStationId);
 
     // Vérifier l'unicité de la référence si modifiée
     if (dto.reference && dto.reference !== dispenser.reference) {
@@ -119,8 +130,8 @@ export class DispenserService {
     });
   }
 
-  async remove(id: string): Promise<void> {
-    await this.findOne(id);
+  async remove(id: string, userStationId?: string | null): Promise<void> {
+    await this.findOne(id, userStationId);
 
     await this.prisma.dispenser.update({
       where: { id },

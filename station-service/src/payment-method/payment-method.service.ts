@@ -35,7 +35,9 @@ export class PaymentMethodService {
       },
     });
 
-    this.logger.log(`Moyen de paiement créé: ${paymentMethod.code} - ${paymentMethod.name}`);
+    this.logger.log(
+      `Moyen de paiement créé: ${paymentMethod.code} - ${paymentMethod.name}`,
+    );
 
     return paymentMethod;
   }
@@ -53,7 +55,9 @@ export class PaymentMethodService {
     });
 
     if (!paymentMethod) {
-      throw new NotFoundException(`Moyen de paiement avec l'ID ${id} non trouvé`);
+      throw new NotFoundException(
+        `Moyen de paiement avec l'ID ${id} non trouvé`,
+      );
     }
 
     return paymentMethod;
@@ -65,7 +69,10 @@ export class PaymentMethodService {
     });
   }
 
-  async update(id: string, dto: UpdatePaymentMethodDto): Promise<PaymentMethod> {
+  async update(
+    id: string,
+    dto: UpdatePaymentMethodDto,
+  ): Promise<PaymentMethod> {
     // Vérifier que le moyen de paiement existe
     await this.findOne(id);
 
@@ -73,7 +80,9 @@ export class PaymentMethodService {
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
-        ...(dto.requiresReference !== undefined && { requiresReference: dto.requiresReference }),
+        ...(dto.requiresReference !== undefined && {
+          requiresReference: dto.requiresReference,
+        }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       },
     });

@@ -18,7 +18,9 @@ export class PrismaService
       await this.$connect();
       this.logger.log('Database connected');
     } catch (error) {
-      this.logger.warn('Database connection failed - will retry on first query');
+      this.logger.warn(
+        'Database connection failed - will retry on first query',
+      );
     }
   }
 

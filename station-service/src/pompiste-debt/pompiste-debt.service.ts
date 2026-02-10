@@ -21,7 +21,9 @@ export class PompisteDebtService {
     });
 
     if (!pompiste) {
-      throw new NotFoundException('Pompiste non trouvé');
+      throw new NotFoundException(
+        `Pompiste avec l'ID ${dto.pompisteId} non trouvé`,
+      );
     }
 
     if (pompiste.role !== UserRole.POMPISTE) {
@@ -36,7 +38,9 @@ export class PompisteDebtService {
     });
 
     if (!station) {
-      throw new NotFoundException('Station non trouvée');
+      throw new NotFoundException(
+        `Station avec l'ID ${dto.stationId} non trouvée`,
+      );
     }
 
     // Create the debt
@@ -95,7 +99,7 @@ export class PompisteDebtService {
     });
 
     if (!debt) {
-      throw new NotFoundException('Dette non trouvée');
+      throw new NotFoundException(`Dette avec l'ID ${debtId} non trouvée`);
     }
 
     if (debt.status === DebtStatus.PAID) {
@@ -233,7 +237,7 @@ export class PompisteDebtService {
   /**
    * Get a single debt with all relations
    */
-  async findOne(id: string) {
+  async findOne(id: string, userStationId?: string | null) {
     const debt = await this.prisma.pompisteDebt.findUnique({
       where: { id },
       include: {
@@ -275,7 +279,12 @@ export class PompisteDebtService {
     });
 
     if (!debt) {
-      throw new NotFoundException('Dette non trouvée');
+      throw new NotFoundException(`Dette avec l'ID ${id} non trouvée`);
+    }
+
+    // Vérification multi-tenant
+    if (userStationId && debt.stationId !== userStationId) {
+      throw new NotFoundException(`Dette avec l'ID ${id} non trouvée`);
     }
 
     return debt;
@@ -307,18 +316,17 @@ export class PompisteDebtService {
   /**
    * Cancel a debt
    */
-  async cancel(debtId: string, userId: string, reason: string) {
-    const debt = await this.prisma.pompisteDebt.findUnique({
-      where: { id: debtId },
-    });
-
-    if (!debt) {
-      throw new NotFoundException('Dette non trouvée');
-    }
+  async cancel(
+    debtId: string,
+    userId: string,
+    reason: string,
+    userStationId?: string | null,
+  ) {
+    const debt = await this.findOne(debtId, userStationId);
 
     if (debt.status === DebtStatus.PAID) {
       throw new BadRequestException(
-        'Impossible d\'annuler une dette déjà soldée',
+        "Impossible d'annuler une dette déjà soldée",
       );
     }
 

@@ -1,14 +1,36 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, LogLevel } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
+import { PaginationInterceptor } from './common/interceptors/pagination.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Configuration des niveaux de log par environnement
+  const logLevels: Record<string, LogLevel[]> = {
+    development: ['log', 'error', 'warn', 'debug', 'verbose'],
+    staging: ['log', 'error', 'warn'],
+    production: ['error', 'warn'],
+    test: ['error'],
+  };
+
+  const env = process.env.NODE_ENV || 'development';
+  const levels = logLevels[env] || logLevels.development;
+
+  const app = await NestFactory.create(AppModule, {
+    logger: levels,
+  });
+
   const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
+
+  // Filtre d'exception global
+  app.useGlobalFilters(new GlobalExceptionFilter());
+
+  // Intercepteur de pagination global
+  app.useGlobalInterceptors(new PaginationInterceptor());
 
   // Security headers with Helmet
   app.use(
@@ -26,7 +48,10 @@ async function bootstrap() {
   );
 
   // CORS configuration
-  const corsOrigins = configService.get<string>('CORS_ORIGINS', 'http://localhost:3001');
+  const corsOrigins = configService.get<string>(
+    'CORS_ORIGINS',
+    'http://localhost:3001',
+  );
   const allowedOrigins = corsOrigins.split(',').map((origin) => origin.trim());
 
   app.enableCors({
@@ -46,8 +71,8 @@ async function bootstrap() {
       }
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-    exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Per-Page'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Request-Id'],
+    exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Per-Page', 'X-Total-Pages', 'X-Request-Id'],
     credentials: true,
     maxAge: 86400, // 24 hours
   });
@@ -79,6 +104,7 @@ async function bootstrap() {
 
   logger.log(`Application running on port ${port}`);
   logger.log(`Environment: ${configService.get('NODE_ENV', 'development')}`);
+  logger.log(`Log levels: ${levels.join(', ')}`);
   logger.log(`CORS origins: ${allowedOrigins.join(', ')}`);
 }
 bootstrap();

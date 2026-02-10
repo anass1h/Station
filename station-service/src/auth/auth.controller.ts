@@ -1,12 +1,10 @@
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import { ApiOperation, ApiTags, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+  ApiOperation,
+  ApiTags,
+  ApiBearerAuth,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
@@ -21,6 +19,7 @@ import {
 } from './dto';
 import { JwtAuthGuard } from './guards';
 import { CurrentUser } from './decorators';
+import { SkipStationScope } from '../common/guards/index.js';
 import type { AuthenticatedUser } from './strategies';
 
 interface RequestWithHeaders {
@@ -30,6 +29,7 @@ interface RequestWithHeaders {
 }
 
 @ApiTags('auth')
+@SkipStationScope()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -46,7 +46,8 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 tentatives par minute
   @ApiOperation({
     summary: 'Connexion par email/password',
-    description: 'Pour GESTIONNAIRE et SUPER_ADMIN uniquement. Retourne access token et refresh token.',
+    description:
+      'Pour GESTIONNAIRE et SUPER_ADMIN uniquement. Retourne access token et refresh token.',
   })
   @ApiResponse({ status: 200, description: 'Connexion réussie avec tokens' })
   @ApiResponse({ status: 401, description: 'Identifiants invalides' })
@@ -70,7 +71,8 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 tentatives par minute
   @ApiOperation({
     summary: 'Connexion par badge/PIN',
-    description: 'Pour POMPISTE et GESTIONNAIRE uniquement. Retourne access token et refresh token.',
+    description:
+      'Pour POMPISTE et GESTIONNAIRE uniquement. Retourne access token et refresh token.',
   })
   @ApiResponse({ status: 200, description: 'Connexion réussie avec tokens' })
   @ApiResponse({ status: 401, description: 'Badge ou PIN invalide' })
@@ -89,11 +91,18 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 tentatives par minute
   @ApiOperation({
     summary: 'Rafraîchir les tokens',
-    description: 'Utilise le refresh token pour obtenir de nouveaux tokens. Le refresh token est à usage unique (rotation).',
+    description:
+      'Utilise le refresh token pour obtenir de nouveaux tokens. Le refresh token est à usage unique (rotation).',
   })
   @ApiResponse({ status: 200, description: 'Nouveaux tokens générés' })
-  @ApiResponse({ status: 401, description: 'Refresh token invalide, expiré ou révoqué' })
-  @ApiResponse({ status: 429, description: 'Trop de tentatives de rafraîchissement' })
+  @ApiResponse({
+    status: 401,
+    description: 'Refresh token invalide, expiré ou révoqué',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Trop de tentatives de rafraîchissement',
+  })
   async refresh(@Body() dto: RefreshTokenDto): Promise<AuthResponseDto> {
     return this.authService.refreshTokens(dto.refreshToken);
   }
@@ -104,7 +113,7 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'Utilisateur créé avec tokens' })
   @ApiResponse({ status: 400, description: 'Données invalides' })
   @ApiResponse({ status: 409, description: 'Email ou badge déjà utilisé' })
-  @ApiResponse({ status: 429, description: 'Trop de tentatives d\'inscription' })
+  @ApiResponse({ status: 429, description: "Trop de tentatives d'inscription" })
   async register(@Body() dto: RegisterDto): Promise<AuthResponseDto> {
     return this.authService.register(dto);
   }
@@ -141,7 +150,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Déconnexion de tous les appareils',
-    description: 'Révoque tous les refresh tokens de l\'utilisateur',
+    description: "Révoque tous les refresh tokens de l'utilisateur",
   })
   @ApiResponse({ status: 200, description: 'Tous les tokens révoqués' })
   async logoutAll(
@@ -178,10 +187,14 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Changer le mot de passe',
-    description: 'Permet à l\'utilisateur de changer son mot de passe. Révoque tous les tokens.',
+    description:
+      "Permet à l'utilisateur de changer son mot de passe. Révoque tous les tokens.",
   })
   @ApiResponse({ status: 200, description: 'Mot de passe modifié avec succès' })
-  @ApiResponse({ status: 400, description: 'Mot de passe invalide ou compte sans mot de passe' })
+  @ApiResponse({
+    status: 400,
+    description: 'Mot de passe invalide ou compte sans mot de passe',
+  })
   @ApiResponse({ status: 401, description: 'Mot de passe actuel incorrect' })
   async changePassword(
     @CurrentUser() user: AuthenticatedUser,
@@ -199,10 +212,14 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Changer le code PIN',
-    description: 'Permet à l\'utilisateur (POMPISTE/GESTIONNAIRE) de changer son code PIN. Révoque tous les tokens.',
+    description:
+      "Permet à l'utilisateur (POMPISTE/GESTIONNAIRE) de changer son code PIN. Révoque tous les tokens.",
   })
   @ApiResponse({ status: 200, description: 'Code PIN modifié avec succès' })
-  @ApiResponse({ status: 400, description: 'PIN invalide ou utilisateur non autorisé' })
+  @ApiResponse({
+    status: 400,
+    description: 'PIN invalide ou utilisateur non autorisé',
+  })
   async changePin(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: ChangePinDto,

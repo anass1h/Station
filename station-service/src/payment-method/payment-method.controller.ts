@@ -32,7 +32,10 @@ export class PaymentMethodController {
   @Post()
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Créer un nouveau moyen de paiement' })
-  @ApiResponse({ status: 201, description: 'Moyen de paiement créé avec succès' })
+  @ApiResponse({
+    status: 201,
+    description: 'Moyen de paiement créé avec succès',
+  })
   @ApiResponse({ status: 400, description: 'Données invalides' })
   @ApiResponse({ status: 409, description: 'Code déjà utilisé' })
   async create(@Body() dto: CreatePaymentMethodDto) {
@@ -41,15 +44,23 @@ export class PaymentMethodController {
 
   @Get()
   @ApiOperation({ summary: 'Lister les moyens de paiement actifs' })
-  @ApiResponse({ status: 200, description: 'Liste des moyens de paiement actifs' })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des moyens de paiement actifs',
+  })
   async findAll() {
     return this.paymentMethodService.findAll(false);
   }
 
   @Get('all')
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Lister tous les moyens de paiement (inclus inactifs)' })
-  @ApiResponse({ status: 200, description: 'Liste de tous les moyens de paiement' })
+  @ApiOperation({
+    summary: 'Lister tous les moyens de paiement (inclus inactifs)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste de tous les moyens de paiement',
+  })
   async findAllIncludingInactive() {
     return this.paymentMethodService.findAll(true);
   }
@@ -65,7 +76,9 @@ export class PaymentMethodController {
 
   @Patch(':id')
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Mettre à jour un moyen de paiement (code immutable)' })
+  @ApiOperation({
+    summary: 'Mettre à jour un moyen de paiement (code immutable)',
+  })
   @ApiParam({ name: 'id', description: 'UUID du moyen de paiement' })
   @ApiResponse({ status: 200, description: 'Moyen de paiement mis à jour' })
   @ApiResponse({ status: 400, description: 'Données invalides' })
@@ -83,7 +96,10 @@ export class PaymentMethodController {
   @ApiParam({ name: 'id', description: 'UUID du moyen de paiement' })
   @ApiResponse({ status: 200, description: 'Moyen de paiement désactivé' })
   @ApiResponse({ status: 404, description: 'Moyen de paiement non trouvé' })
-  @ApiResponse({ status: 409, description: 'Moyen de paiement utilisé par des paiements' })
+  @ApiResponse({
+    status: 409,
+    description: 'Moyen de paiement utilisé par des paiements',
+  })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.paymentMethodService.remove(id);
   }

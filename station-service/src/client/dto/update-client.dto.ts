@@ -19,7 +19,7 @@ export class UpdateClientDto {
   clientType?: ClientType;
 
   @ApiPropertyOptional({
-    description: 'Nom de l\'entreprise',
+    description: "Nom de l'entreprise",
   })
   @IsOptional()
   @IsString()

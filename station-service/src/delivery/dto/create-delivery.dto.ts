@@ -40,7 +40,7 @@ export class CreateDeliveryDto {
   quantity!: number;
 
   @ApiProperty({
-    description: 'Prix d\'achat en MAD/litre',
+    description: "Prix d'achat en MAD/litre",
     example: 9.5,
   })
   @IsNumber()

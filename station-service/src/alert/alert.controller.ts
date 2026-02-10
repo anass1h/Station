@@ -17,9 +17,12 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { AlertPriority, AlertStatus, UserRole } from '@prisma/client';
+import { AlertPriority, AlertStatus, AlertType, UserRole } from '@prisma/client';
 import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles, CurrentUser } from '../auth/decorators/index.js';
+import { StationScope } from '../common/decorators/index.js';
+import { PaginationDto } from '../common/dto/pagination.dto.js';
+import { DateRangeFilterDto } from '../common/dto/date-range-filter.dto.js';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy.js';
 import { AlertService } from './alert.service.js';
 import { AlertTriggerService } from './alert-trigger.service.js';
@@ -45,31 +48,62 @@ export class AlertController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Lister les alertes avec filtres' })
-  @ApiQuery({ name: 'stationId', required: false, description: 'Filtrer par station' })
-  @ApiQuery({ name: 'status', required: false, enum: AlertStatus, description: 'Filtrer par statut' })
-  @ApiQuery({ name: 'priority', required: false, enum: AlertPriority, description: 'Filtrer par priorité' })
-  @ApiResponse({ status: 200, description: 'Liste des alertes' })
+  @ApiOperation({ summary: 'Lister les alertes avec filtres et pagination' })
+  @ApiQuery({ name: 'page', required: false, description: 'Numéro de page' })
+  @ApiQuery({ name: 'perPage', required: false, description: 'Éléments par page' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: AlertStatus,
+    description: 'Filtrer par statut',
+  })
+  @ApiQuery({
+    name: 'priority',
+    required: false,
+    enum: AlertPriority,
+    description: 'Filtrer par priorité',
+  })
+  @ApiQuery({ name: 'alertType', required: false, description: 'Filtrer par type' })
+  @ApiResponse({ status: 200, description: 'Liste des alertes paginée' })
   async findAll(
-    @Query('stationId') stationId?: string,
+    @Query() pagination: PaginationDto,
+    @Query() dateFilter: DateRangeFilterDto,
     @Query('status') status?: AlertStatus,
     @Query('priority') priority?: AlertPriority,
+    @Query('alertType') alertType?: AlertType,
+    @StationScope() stationId?: string | null,
   ) {
-    return this.alertService.findAll(stationId, status, priority);
+    return this.alertService.findAll(pagination, stationId, {
+      dateFrom: dateFilter.dateFrom,
+      dateTo: dateFilter.dateTo,
+      status,
+      priority,
+      alertType,
+    });
   }
 
   @Get('active')
   @ApiOperation({ summary: 'Lister les alertes actives' })
-  @ApiQuery({ name: 'stationId', required: false, description: 'Filtrer par station' })
-  @ApiResponse({ status: 200, description: 'Liste des alertes actives' })
-  async findAllActive(@Query('stationId') stationId?: string) {
-    return this.alertService.findAll(stationId, AlertStatus.ACTIVE);
+  @ApiQuery({ name: 'page', required: false, description: 'Numéro de page' })
+  @ApiQuery({ name: 'perPage', required: false, description: 'Éléments par page' })
+  @ApiResponse({ status: 200, description: 'Liste des alertes actives paginée' })
+  async findAllActive(
+    @Query() pagination: PaginationDto,
+    @StationScope() stationId?: string | null,
+  ) {
+    return this.alertService.findAll(pagination, stationId, {
+      status: AlertStatus.ACTIVE,
+    });
   }
 
   @Get('count')
   @ApiOperation({ summary: 'Compter les alertes actives' })
-  @ApiQuery({ name: 'stationId', required: false, description: 'Filtrer par station' })
-  @ApiResponse({ status: 200, description: 'Nombre d\'alertes actives' })
+  @ApiQuery({
+    name: 'stationId',
+    required: false,
+    description: 'Filtrer par station',
+  })
+  @ApiResponse({ status: 200, description: "Nombre d'alertes actives" })
   async countActive(@Query('stationId') stationId?: string) {
     const count = await this.alertService.countActive(stationId);
     return { count };
@@ -77,52 +111,60 @@ export class AlertController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer une alerte par ID' })
-  @ApiParam({ name: 'id', description: 'UUID de l\'alerte' })
+  @ApiParam({ name: 'id', description: "UUID de l'alerte" })
   @ApiResponse({ status: 200, description: 'Alerte trouvée' })
   @ApiResponse({ status: 404, description: 'Alerte non trouvée' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.alertService.findOne(id);
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @StationScope() stationId: string | null,
+  ) {
+    return this.alertService.findOne(id, stationId);
   }
 
   @Patch(':id/acknowledge')
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Acquitter une alerte' })
-  @ApiParam({ name: 'id', description: 'UUID de l\'alerte' })
+  @ApiParam({ name: 'id', description: "UUID de l'alerte" })
   @ApiResponse({ status: 200, description: 'Alerte acquittée' })
   @ApiResponse({ status: 404, description: 'Alerte non trouvée' })
   async acknowledge(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthenticatedUser,
+    @StationScope() stationId: string | null,
   ) {
-    return this.alertService.acknowledge(id, user.id);
+    return this.alertService.acknowledge(id, user.id, stationId);
   }
 
   @Patch(':id/resolve')
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Résoudre une alerte' })
-  @ApiParam({ name: 'id', description: 'UUID de l\'alerte' })
+  @ApiParam({ name: 'id', description: "UUID de l'alerte" })
   @ApiResponse({ status: 200, description: 'Alerte résolue' })
   @ApiResponse({ status: 404, description: 'Alerte non trouvée' })
   async resolve(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthenticatedUser,
+    @StationScope() stationId: string | null,
   ) {
-    return this.alertService.resolve(id, user.id);
+    return this.alertService.resolve(id, user.id, stationId);
   }
 
   @Patch(':id/ignore')
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Ignorer une alerte' })
-  @ApiParam({ name: 'id', description: 'UUID de l\'alerte' })
+  @ApiParam({ name: 'id', description: "UUID de l'alerte" })
   @ApiResponse({ status: 200, description: 'Alerte ignorée' })
   @ApiResponse({ status: 404, description: 'Alerte non trouvée' })
-  async ignore(@Param('id', ParseUUIDPipe) id: string) {
-    return this.alertService.ignore(id);
+  async ignore(
+    @Param('id', ParseUUIDPipe) id: string,
+    @StationScope() stationId: string | null,
+  ) {
+    return this.alertService.ignore(id, stationId);
   }
 
   @Post('trigger/check-all')
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Exécuter toutes les vérifications d\'alertes' })
+  @ApiOperation({ summary: "Exécuter toutes les vérifications d'alertes" })
   @ApiResponse({ status: 200, description: 'Vérifications exécutées' })
   async triggerAllChecks() {
     return this.alertTriggerService.runAllChecks();
@@ -147,7 +189,11 @@ export class AlertController {
   @Post('trigger/shift-duration')
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Vérifier les shifts ouverts trop longtemps' })
-  @ApiQuery({ name: 'maxHours', required: false, description: 'Durée max en heures (défaut: 12)' })
+  @ApiQuery({
+    name: 'maxHours',
+    required: false,
+    description: 'Durée max en heures (défaut: 12)',
+  })
   @ApiResponse({ status: 200, description: 'Vérification exécutée' })
   async triggerShiftDurationCheck(@Query('maxHours') maxHours?: string) {
     const hours = maxHours ? parseInt(maxHours, 10) : 12;
@@ -158,7 +204,11 @@ export class AlertController {
   @Post('trigger/maintenance')
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Vérifier les maintenances à venir ou en retard' })
-  @ApiQuery({ name: 'daysAhead', required: false, description: 'Jours à l\'avance (défaut: 7)' })
+  @ApiQuery({
+    name: 'daysAhead',
+    required: false,
+    description: "Jours à l'avance (défaut: 7)",
+  })
   @ApiResponse({ status: 200, description: 'Vérification exécutée' })
   async triggerMaintenanceCheck(@Query('daysAhead') daysAhead?: string) {
     const days = daysAhead ? parseInt(daysAhead, 10) : 7;

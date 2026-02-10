@@ -22,9 +22,14 @@ import type { Response } from 'express';
 import { InvoiceStatus, InvoiceType, UserRole } from '@prisma/client';
 import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles } from '../auth/decorators/index.js';
+import { StationScope } from '../common/decorators/index.js';
 import { InvoiceService } from './invoice.service.js';
 import { InvoicePdfService } from './pdf/index.js';
-import { CreateInvoiceDto, AddPaymentDto, CancelInvoiceDto } from './dto/index.js';
+import {
+  CreateInvoiceDto,
+  AddPaymentDto,
+  CancelInvoiceDto,
+} from './dto/index.js';
 
 @ApiTags('invoices')
 @ApiBearerAuth()
@@ -41,7 +46,10 @@ export class InvoiceController {
   @ApiOperation({ summary: 'Créer une nouvelle facture' })
   @ApiResponse({ status: 201, description: 'Facture créée avec succès' })
   @ApiResponse({ status: 400, description: 'Données invalides' })
-  @ApiResponse({ status: 404, description: 'Station, client ou type de carburant non trouvé' })
+  @ApiResponse({
+    status: 404,
+    description: 'Station, client ou type de carburant non trouvé',
+  })
   async create(@Body() dto: CreateInvoiceDto) {
     return this.invoiceService.create(dto);
   }
@@ -53,8 +61,11 @@ export class InvoiceController {
   @ApiResponse({ status: 200, description: 'Facture émise avec succès' })
   @ApiResponse({ status: 400, description: 'Facture non en brouillon' })
   @ApiResponse({ status: 404, description: 'Facture non trouvée' })
-  async issue(@Param('id', ParseUUIDPipe) id: string) {
-    return this.invoiceService.issue(id);
+  async issue(
+    @Param('id', ParseUUIDPipe) id: string,
+    @StationScope() stationId: string | null,
+  ) {
+    return this.invoiceService.issue(id, stationId);
   }
 
   @Post(':id/payment')
@@ -62,13 +73,20 @@ export class InvoiceController {
   @ApiOperation({ summary: 'Ajouter un paiement à une facture' })
   @ApiParam({ name: 'id', description: 'UUID de la facture' })
   @ApiResponse({ status: 200, description: 'Paiement ajouté avec succès' })
-  @ApiResponse({ status: 400, description: 'Montant invalide ou facture déjà payée' })
-  @ApiResponse({ status: 404, description: 'Facture ou moyen de paiement non trouvé' })
+  @ApiResponse({
+    status: 400,
+    description: 'Montant invalide ou facture déjà payée',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Facture ou moyen de paiement non trouvé',
+  })
   async addPayment(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AddPaymentDto,
+    @StationScope() stationId: string | null,
   ) {
-    return this.invoiceService.addPayment(id, dto);
+    return this.invoiceService.addPayment(id, dto, stationId);
   }
 
   @Post(':id/cancel')
@@ -76,22 +94,30 @@ export class InvoiceController {
   @ApiOperation({ summary: 'Annuler une facture' })
   @ApiParam({ name: 'id', description: 'UUID de la facture' })
   @ApiResponse({ status: 200, description: 'Facture annulée avec succès' })
-  @ApiResponse({ status: 400, description: 'Impossible d\'annuler cette facture' })
+  @ApiResponse({
+    status: 400,
+    description: "Impossible d'annuler cette facture",
+  })
   @ApiResponse({ status: 404, description: 'Facture non trouvée' })
   async cancel(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CancelInvoiceDto,
+    @StationScope() stationId: string | null,
   ) {
-    return this.invoiceService.cancel(id, dto);
+    return this.invoiceService.cancel(id, dto, stationId);
   }
 
   @Get('by-station/:stationId')
-  @ApiOperation({ summary: 'Récupérer les factures d\'une station' })
+  @ApiOperation({ summary: "Récupérer les factures d'une station" })
   @ApiParam({ name: 'stationId', description: 'UUID de la station' })
   @ApiQuery({ name: 'status', required: false, enum: InvoiceStatus })
   @ApiQuery({ name: 'invoiceType', required: false, enum: InvoiceType })
   @ApiQuery({ name: 'clientId', required: false })
-  @ApiQuery({ name: 'from', required: false, description: 'Date de début (ISO)' })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    description: 'Date de début (ISO)',
+  })
   @ApiQuery({ name: 'to', required: false, description: 'Date de fin (ISO)' })
   @ApiResponse({ status: 200, description: 'Liste des factures' })
   async findByStation(
@@ -112,10 +138,12 @@ export class InvoiceController {
   }
 
   @Get('by-station/:stationId/unpaid')
-  @ApiOperation({ summary: 'Factures impayées d\'une station' })
+  @ApiOperation({ summary: "Factures impayées d'une station" })
   @ApiParam({ name: 'stationId', description: 'UUID de la station' })
   @ApiResponse({ status: 200, description: 'Liste des factures impayées' })
-  async getUnpaidInvoices(@Param('stationId', ParseUUIDPipe) stationId: string) {
+  async getUnpaidInvoices(
+    @Param('stationId', ParseUUIDPipe) stationId: string,
+  ) {
     return this.invoiceService.getUnpaidInvoices(stationId);
   }
 
@@ -124,12 +152,14 @@ export class InvoiceController {
   @ApiOperation({ summary: 'Factures en retard de paiement' })
   @ApiParam({ name: 'stationId', description: 'UUID de la station' })
   @ApiResponse({ status: 200, description: 'Liste des factures en retard' })
-  async getOverdueInvoices(@Param('stationId', ParseUUIDPipe) stationId: string) {
+  async getOverdueInvoices(
+    @Param('stationId', ParseUUIDPipe) stationId: string,
+  ) {
     return this.invoiceService.getOverdueInvoices(stationId);
   }
 
   @Get('by-client/:clientId')
-  @ApiOperation({ summary: 'Factures d\'un client' })
+  @ApiOperation({ summary: "Factures d'un client" })
   @ApiParam({ name: 'clientId', description: 'UUID du client' })
   @ApiResponse({ status: 200, description: 'Liste des factures du client' })
   async findByClient(@Param('clientId', ParseUUIDPipe) clientId: string) {
@@ -173,9 +203,15 @@ export class InvoiceController {
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer une facture par son ID' })
   @ApiParam({ name: 'id', description: 'UUID de la facture' })
-  @ApiResponse({ status: 200, description: 'Facture trouvée avec ses relations' })
+  @ApiResponse({
+    status: 200,
+    description: 'Facture trouvée avec ses relations',
+  })
   @ApiResponse({ status: 404, description: 'Facture non trouvée' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.invoiceService.findOne(id);
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @StationScope() stationId: string | null,
+  ) {
+    return this.invoiceService.findOne(id, stationId);
   }
 }

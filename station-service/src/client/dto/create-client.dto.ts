@@ -27,7 +27,7 @@ export class CreateClientDto {
   clientType!: ClientType;
 
   @ApiPropertyOptional({
-    description: 'Nom de l\'entreprise (obligatoire si B2B)',
+    description: "Nom de l'entreprise (obligatoire si B2B)",
     example: 'Transport Express SARL',
   })
   @IsOptional()

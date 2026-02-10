@@ -13,6 +13,7 @@ import { CreateDebtDto, AddDebtPaymentDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { StationScope } from '../common/decorators/index.js';
 import { UserRole, DebtStatus } from '@prisma/client';
 
 @Controller('pompiste-debts')
@@ -25,7 +26,10 @@ export class PompisteDebtController {
    */
   @Post()
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
-  async create(@Body() dto: CreateDebtDto, @Request() req: { user: { id: string } }) {
+  async create(
+    @Body() dto: CreateDebtDto,
+    @Request() req: { user: { id: string } },
+  ) {
     return this.pompisteDebtService.create(dto, req.user.id);
   }
 
@@ -88,8 +92,11 @@ export class PompisteDebtController {
    */
   @Get(':id')
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
-  async findOne(@Param('id') id: string) {
-    return this.pompisteDebtService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @StationScope() stationId: string | null,
+  ) {
+    return this.pompisteDebtService.findOne(id, stationId);
   }
 
   /**
@@ -101,7 +108,8 @@ export class PompisteDebtController {
     @Param('id') id: string,
     @Body('reason') reason: string,
     @Request() req: { user: { id: string } },
+    @StationScope() stationId: string | null,
   ) {
-    return this.pompisteDebtService.cancel(id, req.user.id, reason);
+    return this.pompisteDebtService.cancel(id, req.user.id, reason, stationId);
   }
 }

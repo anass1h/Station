@@ -95,26 +95,35 @@ export class InvoicePdfService {
     doc.fontSize(8).font('Helvetica');
 
     if (station.ice) {
-      doc.text(`ICE: ${station.ice}`, 400, fiscalY, { width: 150, align: 'right' });
+      doc.text(`ICE: ${station.ice}`, 400, fiscalY, {
+        width: 150,
+        align: 'right',
+      });
       fiscalY += 12;
     }
     if (station.taxId) {
-      doc.text(`IF: ${station.taxId}`, 400, fiscalY, { width: 150, align: 'right' });
+      doc.text(`IF: ${station.taxId}`, 400, fiscalY, {
+        width: 150,
+        align: 'right',
+      });
       fiscalY += 12;
     }
     if (station.rc) {
-      doc.text(`RC: ${station.rc}`, 400, fiscalY, { width: 150, align: 'right' });
+      doc.text(`RC: ${station.rc}`, 400, fiscalY, {
+        width: 150,
+        align: 'right',
+      });
       fiscalY += 12;
     }
     if (station.patente) {
-      doc.text(`Patente: ${station.patente}`, 400, fiscalY, { width: 150, align: 'right' });
+      doc.text(`Patente: ${station.patente}`, 400, fiscalY, {
+        width: 150,
+        align: 'right',
+      });
     }
 
     // Ligne de séparation
-    doc
-      .moveTo(50, 130)
-      .lineTo(550, 130)
-      .stroke();
+    doc.moveTo(50, 130).lineTo(550, 130).stroke();
   }
 
   private generateInvoiceInfo(doc: PDFKit.PDFDocument, invoice: any): void {
@@ -126,9 +135,7 @@ export class InvoicePdfService {
 
     // Infos facture dans un cadre
     const boxTop = 185;
-    doc
-      .rect(350, boxTop, 200, 70)
-      .stroke();
+    doc.rect(350, boxTop, 200, 70).stroke();
 
     doc.fontSize(10).font('Helvetica');
     doc.text(`N° : ${invoice.invoiceNumber}`, 360, boxTop + 10);
@@ -145,7 +152,11 @@ export class InvoicePdfService {
 
     doc
       .font('Helvetica-Bold')
-      .text(`Statut : ${this.translateStatus(invoice.status)}`, 360, boxTop + 55);
+      .text(
+        `Statut : ${this.translateStatus(invoice.status)}`,
+        360,
+        boxTop + 55,
+      );
   }
 
   private generateClientInfo(doc: PDFKit.PDFDocument, invoice: any): void {
@@ -153,9 +164,7 @@ export class InvoicePdfService {
     if (!client) return;
 
     const boxTop = 185;
-    doc
-      .rect(50, boxTop, 250, 70)
-      .stroke();
+    doc.rect(50, boxTop, 250, 70).stroke();
 
     doc
       .fontSize(10)
@@ -208,9 +217,7 @@ export class InvoicePdfService {
     };
 
     // En-tête du tableau
-    doc
-      .rect(tableLeft, tableTop, 500, 25)
-      .fill('#f0f0f0');
+    doc.rect(tableLeft, tableTop, 500, 25).fill('#f0f0f0');
 
     doc
       .fontSize(10)
@@ -240,11 +247,25 @@ export class InvoicePdfService {
       const totalTTC = Number(line.totalTTC).toFixed(2);
 
       doc
-        .text(description, columns.description.x + 5, y, { width: columns.description.width - 10 })
-        .text(quantity, columns.quantity.x + 5, y, { width: columns.quantity.width - 10, align: 'right' })
-        .text(unitPriceHT, columns.unitPrice.x + 5, y, { width: columns.unitPrice.width - 10, align: 'right' })
-        .text(vatRate, columns.vatRate.x + 5, y, { width: columns.vatRate.width - 10, align: 'center' })
-        .text(totalTTC, columns.total.x + 5, y, { width: columns.total.width - 10, align: 'right' });
+        .text(description, columns.description.x + 5, y, {
+          width: columns.description.width - 10,
+        })
+        .text(quantity, columns.quantity.x + 5, y, {
+          width: columns.quantity.width - 10,
+          align: 'right',
+        })
+        .text(unitPriceHT, columns.unitPrice.x + 5, y, {
+          width: columns.unitPrice.width - 10,
+          align: 'right',
+        })
+        .text(vatRate, columns.vatRate.x + 5, y, {
+          width: columns.vatRate.width - 10,
+          align: 'center',
+        })
+        .text(totalTTC, columns.total.x + 5, y, {
+          width: columns.total.width - 10,
+          align: 'right',
+        });
 
       y += 20;
     }
@@ -265,9 +286,7 @@ export class InvoicePdfService {
     const totalsLeft = 350;
 
     // Cadre des totaux
-    doc
-      .rect(totalsLeft, totalsTop, 200, 80)
-      .stroke();
+    doc.rect(totalsLeft, totalsTop, 200, 80).stroke();
 
     doc.fontSize(10).font('Helvetica');
 
@@ -279,12 +298,18 @@ export class InvoicePdfService {
     // Total HT
     doc
       .text('Total HT:', totalsLeft + 10, totalsTop + 10)
-      .text(`${amountHT} MAD`, totalsLeft + 10, totalsTop + 10, { width: 180, align: 'right' });
+      .text(`${amountHT} MAD`, totalsLeft + 10, totalsTop + 10, {
+        width: 180,
+        align: 'right',
+      });
 
     // TVA
     doc
       .text(`TVA (${vatRate}%):`, totalsLeft + 10, totalsTop + 30)
-      .text(`${vatAmount} MAD`, totalsLeft + 10, totalsTop + 30, { width: 180, align: 'right' });
+      .text(`${vatAmount} MAD`, totalsLeft + 10, totalsTop + 30, {
+        width: 180,
+        align: 'right',
+      });
 
     // Ligne de séparation
     doc
@@ -297,7 +322,10 @@ export class InvoicePdfService {
       .font('Helvetica-Bold')
       .fontSize(12)
       .text('Total TTC:', totalsLeft + 10, totalsTop + 58)
-      .text(`${amountTTC} MAD`, totalsLeft + 10, totalsTop + 58, { width: 180, align: 'right' });
+      .text(`${amountTTC} MAD`, totalsLeft + 10, totalsTop + 58, {
+        width: 180,
+        align: 'right',
+      });
 
     // Montant en lettres (optionnel)
     doc
@@ -316,10 +344,7 @@ export class InvoicePdfService {
     const footerTop = pageHeight - 100;
 
     // Ligne de séparation
-    doc
-      .moveTo(50, footerTop)
-      .lineTo(550, footerTop)
-      .stroke();
+    doc.moveTo(50, footerTop).lineTo(550, footerTop).stroke();
 
     // Mentions légales
     doc
@@ -332,24 +357,20 @@ export class InvoicePdfService {
         footerTop + 10,
         { width: 500, align: 'center' },
       )
-      .text(
-        'Pas d\'escompte pour paiement anticipé.',
-        50,
-        footerTop + 22,
-        { width: 500, align: 'center' },
-      );
+      .text("Pas d'escompte pour paiement anticipé.", 50, footerTop + 22, {
+        width: 500,
+        align: 'center',
+      });
 
     // Message de remerciement
     doc
       .fontSize(10)
       .fillColor('#000000')
       .font('Helvetica-Oblique')
-      .text(
-        'Merci pour votre confiance !',
-        50,
-        footerTop + 45,
-        { width: 500, align: 'center' },
-      );
+      .text('Merci pour votre confiance !', 50, footerTop + 45, {
+        width: 500,
+        align: 'center',
+      });
 
     // Numéro de page
     doc

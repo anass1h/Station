@@ -82,7 +82,9 @@ export class SaleValidator {
     };
   }
 
-  async validatePaymentMethod(paymentMethodId: string): Promise<ValidationResult> {
+  async validatePaymentMethod(
+    paymentMethodId: string,
+  ): Promise<ValidationResult> {
     const paymentMethod = await this.prisma.paymentMethod.findUnique({
       where: { id: paymentMethodId },
     });

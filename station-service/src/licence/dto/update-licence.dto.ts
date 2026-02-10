@@ -8,7 +8,10 @@ export class UpdateLicenceDto {
   @IsEnum(LicencePlan)
   plan?: LicencePlan;
 
-  @ApiPropertyOptional({ enum: LicenceStatus, description: 'Statut de la licence' })
+  @ApiPropertyOptional({
+    enum: LicenceStatus,
+    description: 'Statut de la licence',
+  })
   @IsOptional()
   @IsEnum(LicenceStatus)
   status?: LicenceStatus;

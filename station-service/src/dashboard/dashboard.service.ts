@@ -49,8 +49,14 @@ export class DashboardService {
     });
 
     // Calculate totals
-    const totalSalesLiters = sales.reduce((sum, s) => sum + Number(s.quantity), 0);
-    const totalSalesAmount = sales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
+    const totalSalesLiters = sales.reduce(
+      (sum, s) => sum + Number(s.quantity),
+      0,
+    );
+    const totalSalesAmount = sales.reduce(
+      (sum, s) => sum + Number(s.totalAmount),
+      0,
+    );
 
     // Group by fuel type
     const fuelTypeMap = new Map<string, FuelTypeSales>();
@@ -104,9 +110,11 @@ export class DashboardService {
       .map((s) => s.cashRegister)
       .filter((cr): cr is NonNullable<typeof cr> => cr !== null);
 
-    const avgCashVariance = cashRegisters.length > 0
-      ? cashRegisters.reduce((sum, cr) => sum + Number(cr.variance), 0) / cashRegisters.length
-      : 0;
+    const avgCashVariance =
+      cashRegisters.length > 0
+        ? cashRegisters.reduce((sum, cr) => sum + Number(cr.variance), 0) /
+          cashRegisters.length
+        : 0;
 
     return {
       date: date.toISOString().split('T')[0],
@@ -119,7 +127,11 @@ export class DashboardService {
     };
   }
 
-  async getMonthlySummary(stationId: string, year: number, month: number): Promise<MonthlySummary> {
+  async getMonthlySummary(
+    stationId: string,
+    year: number,
+    month: number,
+  ): Promise<MonthlySummary> {
     const startOfMonth = new Date(year, month - 1, 1);
     const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
 
@@ -145,8 +157,14 @@ export class DashboardService {
       },
     });
 
-    const totalSalesLiters = sales.reduce((sum, s) => sum + Number(s.quantity), 0);
-    const totalSalesAmount = sales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
+    const totalSalesLiters = sales.reduce(
+      (sum, s) => sum + Number(s.quantity),
+      0,
+    );
+    const totalSalesAmount = sales.reduce(
+      (sum, s) => sum + Number(s.totalAmount),
+      0,
+    );
 
     // Get deliveries for purchases
     const deliveries = await this.prisma.delivery.findMany({
@@ -171,12 +189,18 @@ export class DashboardService {
     const dailyMap = new Map<string, DailyEvolution>();
     for (const sale of sales) {
       const dateKey = sale.soldAt.toISOString().split('T')[0];
-      const existing = dailyMap.get(dateKey) || { date: dateKey, liters: 0, amount: 0 };
+      const existing = dailyMap.get(dateKey) || {
+        date: dateKey,
+        liters: 0,
+        amount: 0,
+      };
       existing.liters += Number(sale.quantity);
       existing.amount += Number(sale.totalAmount);
       dailyMap.set(dateKey, existing);
     }
-    const dailyEvolution = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    const dailyEvolution = Array.from(dailyMap.values()).sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
 
     // Previous month comparison
     const prevStartOfMonth = new Date(year, month - 2, 1);
@@ -196,15 +220,23 @@ export class DashboardService {
       },
     });
 
-    const prevTotalLiters = prevSales.reduce((sum, s) => sum + Number(s.quantity), 0);
-    const prevTotalAmount = prevSales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
+    const prevTotalLiters = prevSales.reduce(
+      (sum, s) => sum + Number(s.quantity),
+      0,
+    );
+    const prevTotalAmount = prevSales.reduce(
+      (sum, s) => sum + Number(s.totalAmount),
+      0,
+    );
 
-    const litersChange = prevTotalLiters > 0
-      ? ((totalSalesLiters - prevTotalLiters) / prevTotalLiters) * 100
-      : 0;
-    const amountChange = prevTotalAmount > 0
-      ? ((totalSalesAmount - prevTotalAmount) / prevTotalAmount) * 100
-      : 0;
+    const litersChange =
+      prevTotalLiters > 0
+        ? ((totalSalesLiters - prevTotalLiters) / prevTotalLiters) * 100
+        : 0;
+    const amountChange =
+      prevTotalAmount > 0
+        ? ((totalSalesAmount - prevTotalAmount) / prevTotalAmount) * 100
+        : 0;
 
     // Top pompistes
     const pompisteMap = new Map<string, PompisteSales>();
@@ -276,9 +308,10 @@ export class DashboardService {
 
         const totalSold = sales.reduce((sum, s) => sum + Number(s.quantity), 0);
         const avgDailyConsumption = totalSold / 30;
-        const daysRemaining = avgDailyConsumption > 0
-          ? Math.floor(currentLevel / avgDailyConsumption)
-          : null;
+        const daysRemaining =
+          avgDailyConsumption > 0
+            ? Math.floor(currentLevel / avgDailyConsumption)
+            : null;
 
         return {
           tankId: tank.id,
@@ -296,7 +329,10 @@ export class DashboardService {
     );
 
     const totalCapacity = tankStatuses.reduce((sum, t) => sum + t.capacity, 0);
-    const totalCurrentLevel = tankStatuses.reduce((sum, t) => sum + t.currentLevel, 0);
+    const totalCurrentLevel = tankStatuses.reduce(
+      (sum, t) => sum + t.currentLevel,
+      0,
+    );
 
     // Count active stock alerts
     const alertsCount = await this.prisma.alert.count({
@@ -341,7 +377,9 @@ export class DashboardService {
     // Calculate total hours worked
     const totalHoursWorked = shifts.reduce((sum, shift) => {
       if (shift.endedAt) {
-        const hours = (shift.endedAt.getTime() - shift.startedAt.getTime()) / (1000 * 60 * 60);
+        const hours =
+          (shift.endedAt.getTime() - shift.startedAt.getTime()) /
+          (1000 * 60 * 60);
         return sum + hours;
       }
       return sum;
@@ -349,26 +387,39 @@ export class DashboardService {
 
     // Calculate sales totals
     const allSales = shifts.flatMap((s) => s.sales);
-    const totalSalesLiters = allSales.reduce((sum, s) => sum + Number(s.quantity), 0);
-    const totalSalesAmount = allSales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
+    const totalSalesLiters = allSales.reduce(
+      (sum, s) => sum + Number(s.quantity),
+      0,
+    );
+    const totalSalesAmount = allSales.reduce(
+      (sum, s) => sum + Number(s.totalAmount),
+      0,
+    );
 
-    const avgSalesPerShift = totalShifts > 0 ? totalSalesAmount / totalShifts : 0;
+    const avgSalesPerShift =
+      totalShifts > 0 ? totalSalesAmount / totalShifts : 0;
 
     // Calculate average cash variance
     const cashRegisters = shifts
       .map((s) => s.cashRegister)
       .filter((cr): cr is NonNullable<typeof cr> => cr !== null);
 
-    const avgCashVariance = cashRegisters.length > 0
-      ? cashRegisters.reduce((sum, cr) => sum + Number(cr.variance), 0) / cashRegisters.length
-      : 0;
+    const avgCashVariance =
+      cashRegisters.length > 0
+        ? cashRegisters.reduce((sum, cr) => sum + Number(cr.variance), 0) /
+          cashRegisters.length
+        : 0;
 
     // Count incidents (shifts with incident notes)
-    const incidentsCount = shifts.filter((s) => s.incidentNote && s.incidentNote.trim() !== '').length;
+    const incidentsCount = shifts.filter(
+      (s) => s.incidentNote && s.incidentNote.trim() !== '',
+    ).length;
 
     return {
       pompisteId,
-      pompisteName: pompiste ? `${pompiste.firstName} ${pompiste.lastName}` : 'Unknown',
+      pompisteName: pompiste
+        ? `${pompiste.firstName} ${pompiste.lastName}`
+        : 'Unknown',
       totalShifts,
       totalHoursWorked: Math.round(totalHoursWorked * 100) / 100,
       totalSalesLiters: Math.round(totalSalesLiters * 100) / 100,
@@ -379,7 +430,11 @@ export class DashboardService {
     };
   }
 
-  async getFinancialSummary(stationId: string, year: number, month: number): Promise<FinancialSummary> {
+  async getFinancialSummary(
+    stationId: string,
+    year: number,
+    month: number,
+  ): Promise<FinancialSummary> {
     const startOfMonth = new Date(year, month - 1, 1);
     const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
 
@@ -395,9 +450,18 @@ export class DashboardService {
       },
     });
 
-    const revenue = invoices.reduce((sum, inv) => sum + Number(inv.amountTTC), 0);
-    const revenueHT = invoices.reduce((sum, inv) => sum + Number(inv.amountHT), 0);
-    const vatCollected = invoices.reduce((sum, inv) => sum + Number(inv.vatAmount), 0);
+    const revenue = invoices.reduce(
+      (sum, inv) => sum + Number(inv.amountTTC),
+      0,
+    );
+    const revenueHT = invoices.reduce(
+      (sum, inv) => sum + Number(inv.amountHT),
+      0,
+    );
+    const vatCollected = invoices.reduce(
+      (sum, inv) => sum + Number(inv.vatAmount),
+      0,
+    );
 
     // Get deliveries for purchases
     const deliveries = await this.prisma.delivery.findMany({
@@ -471,9 +535,13 @@ export class DashboardService {
 
     // Group by priority
     const byPriority = {
-      critical: activeAlerts.filter((a) => a.priority === AlertPriority.CRITICAL).length,
-      high: activeAlerts.filter((a) => a.priority === AlertPriority.HIGH).length,
-      medium: activeAlerts.filter((a) => a.priority === AlertPriority.MEDIUM).length,
+      critical: activeAlerts.filter(
+        (a) => a.priority === AlertPriority.CRITICAL,
+      ).length,
+      high: activeAlerts.filter((a) => a.priority === AlertPriority.HIGH)
+        .length,
+      medium: activeAlerts.filter((a) => a.priority === AlertPriority.MEDIUM)
+        .length,
       low: activeAlerts.filter((a) => a.priority === AlertPriority.LOW).length,
     };
 
@@ -533,8 +601,14 @@ export class DashboardService {
       },
     });
 
-    const totalSalesLiters = sales.reduce((sum, s) => sum + Number(s.quantity), 0);
-    const totalSalesAmount = sales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
+    const totalSalesLiters = sales.reduce(
+      (sum, s) => sum + Number(s.quantity),
+      0,
+    );
+    const totalSalesAmount = sales.reduce(
+      (sum, s) => sum + Number(s.totalAmount),
+      0,
+    );
 
     // Get all deliveries
     const deliveries = await this.prisma.delivery.findMany({
@@ -554,7 +628,15 @@ export class DashboardService {
     const estimatedMargin = totalSalesAmount - totalPurchaseAmount;
 
     // Group by station
-    const stationMap = new Map<string, { stationId: string; stationName: string; salesLiters: number; salesAmount: number }>();
+    const stationMap = new Map<
+      string,
+      {
+        stationId: string;
+        stationName: string;
+        salesLiters: number;
+        salesAmount: number;
+      }
+    >();
 
     for (const station of stations) {
       stationMap.set(station.id, {
@@ -574,8 +656,9 @@ export class DashboardService {
       }
     }
 
-    const byStation = Array.from(stationMap.values())
-      .sort((a, b) => b.salesAmount - a.salesAmount);
+    const byStation = Array.from(stationMap.values()).sort(
+      (a, b) => b.salesAmount - a.salesAmount,
+    );
 
     // Active alerts count
     const activeAlertsCount = await this.prisma.alert.count({

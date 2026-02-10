@@ -1,5 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsPositive, IsString, Min, MinLength } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class UpdateTankDto {
   @ApiPropertyOptional({
@@ -30,7 +37,7 @@ export class UpdateTankDto {
   currentLevel?: number;
 
   @ApiPropertyOptional({
-    description: 'Seuil d\'alerte bas en litres',
+    description: "Seuil d'alerte bas en litres",
     example: 5000,
   })
   @IsOptional()

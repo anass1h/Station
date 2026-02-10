@@ -7,28 +7,30 @@ export class CreateAlertDto {
   @IsUUID()
   stationId!: string;
 
-  @ApiProperty({ enum: AlertType, description: 'Type d\'alerte' })
+  @ApiProperty({ enum: AlertType, description: "Type d'alerte" })
   @IsEnum(AlertType)
   alertType!: AlertType;
 
-  @ApiProperty({ enum: AlertPriority, description: 'Priorité de l\'alerte' })
+  @ApiProperty({ enum: AlertPriority, description: "Priorité de l'alerte" })
   @IsEnum(AlertPriority)
   priority!: AlertPriority;
 
-  @ApiProperty({ description: 'Titre de l\'alerte' })
+  @ApiProperty({ description: "Titre de l'alerte" })
   @IsString()
   title!: string;
 
-  @ApiProperty({ description: 'Message détaillé de l\'alerte' })
+  @ApiProperty({ description: "Message détaillé de l'alerte" })
   @IsString()
   message!: string;
 
-  @ApiPropertyOptional({ description: 'ID de l\'entité concernée' })
+  @ApiPropertyOptional({ description: "ID de l'entité concernée" })
   @IsOptional()
   @IsString()
   relatedEntityId?: string;
 
-  @ApiPropertyOptional({ description: 'Type de l\'entité concernée (Tank, Shift, Client, etc.)' })
+  @ApiPropertyOptional({
+    description: "Type de l'entité concernée (Tank, Shift, Client, etc.)",
+  })
   @IsOptional()
   @IsString()
   relatedEntityType?: string;

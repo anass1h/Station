@@ -5,7 +5,18 @@ import {
 } from '@nestjs/common';
 import { Invoice, InvoiceStatus, InvoiceType } from '@prisma/client';
 import { PrismaService } from '../prisma/index.js';
-import { CreateInvoiceDto, AddPaymentDto, CancelInvoiceDto } from './dto/index.js';
+import {
+  CreateInvoiceDto,
+  AddPaymentDto,
+  CancelInvoiceDto,
+} from './dto/index.js';
+import { PaginationDto } from '../common/dto/pagination.dto.js';
+import {
+  PaginatedResponse,
+  buildPaginatedResponse,
+  toPrismaQuery,
+  toDateRangeFilter,
+} from '../common/interfaces/paginated-result.interface.js';
 
 const VAT_RATE = 20; // Taux TVA Maroc
 
@@ -33,7 +44,9 @@ export class InvoiceService {
     });
 
     if (!station) {
-      throw new NotFoundException(`Station avec l'ID ${dto.stationId} non trouvée`);
+      throw new NotFoundException(
+        `Station avec l'ID ${dto.stationId} non trouvée`,
+      );
     }
 
     // Vérifier le client si fourni
@@ -43,7 +56,9 @@ export class InvoiceService {
       });
 
       if (!client) {
-        throw new NotFoundException(`Client avec l'ID ${dto.clientId} non trouvé`);
+        throw new NotFoundException(
+          `Client avec l'ID ${dto.clientId} non trouvé`,
+        );
       }
     }
 
@@ -54,7 +69,9 @@ export class InvoiceService {
       });
 
       if (!fuelType) {
-        throw new NotFoundException(`Type de carburant avec l'ID ${line.fuelTypeId} non trouvé`);
+        throw new NotFoundException(
+          `Type de carburant avec l'ID ${line.fuelTypeId} non trouvé`,
+        );
       }
     }
 
@@ -120,8 +137,8 @@ export class InvoiceService {
     });
   }
 
-  async issue(id: string): Promise<Invoice> {
-    const invoice = await this.findOne(id);
+  async issue(id: string, userStationId?: string | null): Promise<Invoice> {
+    const invoice = await this.findOne(id, userStationId);
 
     if (invoice.status !== InvoiceStatus.DRAFT) {
       throw new BadRequestException(
@@ -135,7 +152,10 @@ export class InvoiceService {
         status: InvoiceStatus.ISSUED,
         issuedAt: new Date(),
         dueDate: invoice.client
-          ? new Date(Date.now() + (invoice.client.paymentTermDays || 30) * 24 * 60 * 60 * 1000)
+          ? new Date(
+              Date.now() +
+                (invoice.client.paymentTermDays || 30) * 24 * 60 * 60 * 1000,
+            )
           : null,
       },
       include: {
@@ -147,11 +167,17 @@ export class InvoiceService {
     });
   }
 
-  async addPayment(invoiceId: string, dto: AddPaymentDto): Promise<Invoice> {
-    const invoice = await this.findOne(invoiceId);
+  async addPayment(
+    invoiceId: string,
+    dto: AddPaymentDto,
+    userStationId?: string | null,
+  ): Promise<Invoice> {
+    const invoice = await this.findOne(invoiceId, userStationId);
 
     if (invoice.status === InvoiceStatus.CANCELLED) {
-      throw new BadRequestException('Impossible d\'ajouter un paiement à une facture annulée');
+      throw new BadRequestException(
+        "Impossible d'ajouter un paiement à une facture annulée",
+      );
     }
 
     if (invoice.status === InvoiceStatus.PAID) {
@@ -164,11 +190,14 @@ export class InvoiceService {
     });
 
     if (!paymentMethod) {
-      throw new NotFoundException(`Moyen de paiement avec l'ID ${dto.paymentMethodId} non trouvé`);
+      throw new NotFoundException(
+        `Moyen de paiement avec l'ID ${dto.paymentMethodId} non trouvé`,
+      );
     }
 
     // Vérifier que le montant ne dépasse pas le reste à payer
-    const remainingAmount = Number(invoice.amountTTC) - Number(invoice.paidAmount);
+    const remainingAmount =
+      Number(invoice.amountTTC) - Number(invoice.paidAmount);
     if (dto.amount > remainingAmount) {
       throw new BadRequestException(
         `Le montant du paiement (${dto.amount} MAD) dépasse le reste à payer (${remainingAmount.toFixed(2)} MAD)`,
@@ -224,8 +253,12 @@ export class InvoiceService {
     return updatedInvoice;
   }
 
-  async cancel(id: string, dto: CancelInvoiceDto): Promise<Invoice> {
-    const invoice = await this.findOne(id);
+  async cancel(
+    id: string,
+    dto: CancelInvoiceDto,
+    userStationId?: string | null,
+  ): Promise<Invoice> {
+    const invoice = await this.findOne(id, userStationId);
 
     if (invoice.status === InvoiceStatus.CANCELLED) {
       throw new BadRequestException('Cette facture est déjà annulée');
@@ -233,7 +266,7 @@ export class InvoiceService {
 
     if (invoice.status === InvoiceStatus.PAID) {
       throw new BadRequestException(
-        'Impossible d\'annuler une facture payée. Créez un avoir à la place.',
+        "Impossible d'annuler une facture payée. Créez un avoir à la place.",
       );
     }
 
@@ -259,7 +292,10 @@ export class InvoiceService {
     });
   }
 
-  async findOne(id: string): Promise<Invoice & { client: { paymentTermDays: number } | null }> {
+  async findOne(
+    id: string,
+    userStationId?: string | null,
+  ): Promise<Invoice & { client: { paymentTermDays: number } | null }> {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id },
       include: {
@@ -280,6 +316,11 @@ export class InvoiceService {
       throw new NotFoundException(`Facture avec l'ID ${id} non trouvée`);
     }
 
+    // Vérification multi-tenant
+    if (userStationId && invoice.stationId !== userStationId) {
+      throw new NotFoundException(`Facture avec l'ID ${id} non trouvée`);
+    }
+
     return invoice;
   }
 
@@ -292,6 +333,49 @@ export class InvoiceService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async findAll(
+    pagination: PaginationDto,
+    stationId?: string | null,
+    filters?: {
+      dateFrom?: string;
+      dateTo?: string;
+      clientId?: string;
+      status?: InvoiceStatus;
+      invoiceType?: InvoiceType;
+    },
+  ): Promise<PaginatedResponse<Invoice>> {
+    const { page = 1, perPage = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
+    const { skip, take, orderBy } = toPrismaQuery(page, perPage, sortBy, sortOrder);
+
+    const dateFilter = toDateRangeFilter(filters?.dateFrom, filters?.dateTo);
+
+    const where = {
+      ...(stationId && { stationId }),
+      ...(dateFilter && { createdAt: dateFilter }),
+      ...(filters?.clientId && { clientId: filters.clientId }),
+      ...(filters?.status && { status: filters.status }),
+      ...(filters?.invoiceType && { invoiceType: filters.invoiceType }),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.invoice.findMany({
+        where,
+        include: {
+          station: true,
+          client: true,
+          lines: { include: { fuelType: true } },
+          payments: { include: { paymentMethod: true } },
+        },
+        orderBy,
+        skip,
+        take,
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(data, total, page, perPage);
   }
 
   async findByStation(

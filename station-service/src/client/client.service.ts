@@ -18,13 +18,15 @@ export class ClientService {
     });
 
     if (!station) {
-      throw new NotFoundException(`Station avec l'ID ${dto.stationId} non trouvée`);
+      throw new NotFoundException(
+        `Station avec l'ID ${dto.stationId} non trouvée`,
+      );
     }
 
     // Si B2B, companyName est obligatoire
     if (dto.clientType === ClientType.B2B && !dto.companyName) {
       throw new BadRequestException(
-        'Le nom de l\'entreprise est obligatoire pour un client B2B',
+        "Le nom de l'entreprise est obligatoire pour un client B2B",
       );
     }
 
@@ -49,7 +51,10 @@ export class ClientService {
     });
   }
 
-  async findAll(stationId?: string, clientType?: ClientType): Promise<Client[]> {
+  async findAll(
+    stationId?: string,
+    clientType?: ClientType,
+  ): Promise<Client[]> {
     return this.prisma.client.findMany({
       where: {
         isActive: true,
@@ -59,14 +64,11 @@ export class ClientService {
       include: {
         station: true,
       },
-      orderBy: [
-        { companyName: 'asc' },
-        { contactName: 'asc' },
-      ],
+      orderBy: [{ companyName: 'asc' }, { contactName: 'asc' }],
     });
   }
 
-  async findOne(id: string): Promise<Client> {
+  async findOne(id: string, userStationId?: string | null): Promise<Client> {
     const client = await this.prisma.client.findUnique({
       where: { id },
       include: {
@@ -94,11 +96,20 @@ export class ClientService {
       throw new NotFoundException(`Client avec l'ID ${id} non trouvé`);
     }
 
+    // Vérification multi-tenant
+    if (userStationId && client.stationId !== userStationId) {
+      throw new NotFoundException(`Client avec l'ID ${id} non trouvé`);
+    }
+
     return client;
   }
 
-  async update(id: string, dto: UpdateClientDto): Promise<Client> {
-    const client = await this.findOne(id);
+  async update(
+    id: string,
+    dto: UpdateClientDto,
+    userStationId?: string | null,
+  ): Promise<Client> {
+    const client = await this.findOne(id, userStationId);
 
     // Si on change vers B2B, vérifier companyName
     const newClientType = dto.clientType ?? client.clientType;
@@ -106,7 +117,7 @@ export class ClientService {
 
     if (newClientType === ClientType.B2B && !newCompanyName) {
       throw new BadRequestException(
-        'Le nom de l\'entreprise est obligatoire pour un client B2B',
+        "Le nom de l'entreprise est obligatoire pour un client B2B",
       );
     }
 
@@ -119,8 +130,8 @@ export class ClientService {
     });
   }
 
-  async remove(id: string): Promise<void> {
-    await this.findOne(id);
+  async remove(id: string, userStationId?: string | null): Promise<void> {
+    await this.findOne(id, userStationId);
 
     await this.prisma.client.update({
       where: { id },
@@ -152,7 +163,9 @@ export class ClientService {
     });
 
     return clients.filter(
-      (c) => Number(c.currentBalance) > Number(c.creditLimit) && Number(c.creditLimit) > 0,
+      (c) =>
+        Number(c.currentBalance) > Number(c.creditLimit) &&
+        Number(c.creditLimit) > 0,
     );
   }
 }

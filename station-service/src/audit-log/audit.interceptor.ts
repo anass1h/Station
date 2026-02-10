@@ -57,7 +57,10 @@ export class AuditInterceptor implements NestInterceptor {
 
     // Pour UPDATE/DELETE, récupérer l'ancienne valeur
     let oldValue: Prisma.InputJsonValue | null = null;
-    if ((action === AuditAction.UPDATE || action === AuditAction.DELETE) && entityId) {
+    if (
+      (action === AuditAction.UPDATE || action === AuditAction.DELETE) &&
+      entityId
+    ) {
       oldValue = await this.fetchOldValue(entityType, entityId);
     }
 
@@ -108,7 +111,10 @@ export class AuditInterceptor implements NestInterceptor {
     }
   }
 
-  private extractEntityInfo(path: string): { entityType: string; entityId?: string } {
+  private extractEntityInfo(path: string): {
+    entityType: string;
+    entityId?: string;
+  } {
     // Parse path like /api/v1/stations/uuid or /stations/uuid/action
     const segments = path.split('/').filter(Boolean);
 
@@ -162,12 +168,17 @@ export class AuditInterceptor implements NestInterceptor {
     entityId: string,
   ): Promise<Prisma.InputJsonValue | null> {
     try {
-      const modelName = entityType.charAt(0).toLowerCase() + entityType.slice(1);
+      const modelName =
+        entityType.charAt(0).toLowerCase() + entityType.slice(1);
       const prismaAny = this.prisma as unknown as Record<string, unknown>;
       const model = prismaAny[modelName];
 
       if (model && typeof model === 'object' && 'findUnique' in model) {
-        const findUnique = (model as { findUnique: (args: { where: { id: string } }) => Promise<unknown> }).findUnique;
+        const findUnique = (
+          model as {
+            findUnique: (args: { where: { id: string } }) => Promise<unknown>;
+          }
+        ).findUnique;
         const result = await findUnique({ where: { id: entityId } });
         return result as Prisma.InputJsonValue | null;
       }
@@ -190,7 +201,12 @@ export class AuditInterceptor implements NestInterceptor {
     }
 
     // Remove sensitive fields
-    const sensitiveFields = ['passwordHash', 'pinCodeHash', 'token', 'accessToken'];
+    const sensitiveFields = [
+      'passwordHash',
+      'pinCodeHash',
+      'token',
+      'accessToken',
+    ];
     const sanitized = { ...response } as Record<string, unknown>;
 
     for (const field of sensitiveFields) {

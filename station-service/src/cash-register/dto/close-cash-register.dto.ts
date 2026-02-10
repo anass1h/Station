@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaymentDetailDto } from './payment-detail.dto';
 
@@ -21,7 +28,7 @@ export class CloseCashRegisterDto {
   details!: PaymentDetailDto[];
 
   @ApiPropertyOptional({
-    description: 'Note explicative en cas d\'écart',
+    description: "Note explicative en cas d'écart",
     example: 'Écart dû à un rendu de monnaie incorrect',
   })
   @IsOptional()
@@ -29,7 +36,8 @@ export class CloseCashRegisterDto {
   varianceNote?: string;
 
   @ApiPropertyOptional({
-    description: 'Créer automatiquement une dette si variance négative (manque d\'argent)',
+    description:
+      "Créer automatiquement une dette si variance négative (manque d'argent)",
     example: true,
     default: false,
   })

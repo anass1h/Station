@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/index.js';
+import { TAX_CONSTANTS } from '../constants/business.constants.js';
 
 export interface PriceInfo {
   id: string;
@@ -43,21 +44,30 @@ export class PriceCalculator {
   /**
    * Calcule le montant HT à partir du TTC
    */
-  calculateHT(amountTTC: number, vatRate: number = 20): number {
+  calculateHT(
+    amountTTC: number,
+    vatRate: number = TAX_CONSTANTS.VAT_RATE_STANDARD,
+  ): number {
     return amountTTC / (1 + vatRate / 100);
   }
 
   /**
    * Calcule le montant TTC à partir du HT
    */
-  calculateTTC(amountHT: number, vatRate: number = 20): number {
+  calculateTTC(
+    amountHT: number,
+    vatRate: number = TAX_CONSTANTS.VAT_RATE_STANDARD,
+  ): number {
     return amountHT * (1 + vatRate / 100);
   }
 
   /**
    * Calcule le montant de TVA à partir du HT
    */
-  calculateVAT(amountHT: number, vatRate: number = 20): number {
+  calculateVAT(
+    amountHT: number,
+    vatRate: number = TAX_CONSTANTS.VAT_RATE_STANDARD,
+  ): number {
     return amountHT * (vatRate / 100);
   }
 }

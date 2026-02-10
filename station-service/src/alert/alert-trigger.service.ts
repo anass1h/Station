@@ -1,7 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AlertPriority, AlertType, ShiftStatus, Tank, Client } from '@prisma/client';
+import {
+  AlertPriority,
+  AlertType,
+  ShiftStatus,
+  Tank,
+  Client,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/index.js';
 import { AlertService } from './alert.service.js';
+import {
+  SHIFT_CONSTANTS,
+  STOCK_CONSTANTS,
+  CASH_REGISTER_CONSTANTS,
+  CLIENT_CONSTANTS,
+} from '../common/index.js';
 
 @Injectable()
 export class AlertTriggerService {
@@ -38,8 +50,15 @@ export class AlertTriggerService {
       );
 
       if (!hasActive) {
-        const percentRemaining = Math.round((currentLevel / Number(tank.capacity)) * 100);
-        const priority = percentRemaining <= 10 ? AlertPriority.CRITICAL : AlertPriority.HIGH;
+        const percentRemaining = Math.round(
+          (currentLevel / Number(tank.capacity)) * 100,
+        );
+        const criticalThreshold =
+          STOCK_CONSTANTS.LOW_STOCK_THRESHOLD_PERCENT / 2;
+        const priority =
+          percentRemaining <= criticalThreshold
+            ? AlertPriority.CRITICAL
+            : AlertPriority.HIGH;
 
         await this.alertService.create({
           stationId: tankWithStation.stationId,
@@ -62,9 +81,11 @@ export class AlertTriggerService {
   }
 
   /**
-   * Vérifie si un shift est ouvert depuis trop longtemps (> 12h par défaut)
+   * Vérifie si un shift est ouvert depuis trop longtemps
    */
-  async checkShiftDuration(maxHours = 12): Promise<void> {
+  async checkShiftDuration(
+    maxHours: number = SHIFT_CONSTANTS.MAX_DURATION_WARNING_HOURS,
+  ): Promise<void> {
     const cutoffTime = new Date();
     cutoffTime.setHours(cutoffTime.getHours() - maxHours);
 
@@ -101,7 +122,10 @@ export class AlertTriggerService {
         await this.alertService.create({
           stationId,
           alertType: AlertType.SHIFT_OPEN_TOO_LONG,
-          priority: hoursOpen > 24 ? AlertPriority.HIGH : AlertPriority.MEDIUM,
+          priority:
+            hoursOpen > SHIFT_CONSTANTS.MAX_DURATION_BLOCK_HOURS
+              ? AlertPriority.HIGH
+              : AlertPriority.MEDIUM,
           title: `Shift ouvert depuis ${hoursOpen}h`,
           message: `Le shift de ${shift.pompiste.firstName} ${shift.pompiste.lastName} sur ${shift.nozzle.reference} est ouvert depuis ${hoursOpen} heures (démarré le ${shift.startedAt.toLocaleString('fr-FR')})`,
           relatedEntityId: shift.id,
@@ -117,7 +141,7 @@ export class AlertTriggerService {
   async checkCashVariance(
     cashRegisterId: string,
     variance: number,
-    thresholdPercent = 2,
+    thresholdPercent: number = STOCK_CONSTANTS.DELIVERY_VARIANCE_TOLERANCE_PERCENT,
     expectedTotal: number,
   ): Promise<void> {
     const cashRegister = await this.prisma.cashRegister.findUnique({
@@ -140,16 +164,20 @@ export class AlertTriggerService {
 
     if (!cashRegister) return;
 
-    const variancePercent = expectedTotal > 0
-      ? Math.abs((variance / expectedTotal) * 100)
-      : 0;
+    const variancePercent =
+      expectedTotal > 0 ? Math.abs((variance / expectedTotal) * 100) : 0;
 
-    if (variancePercent >= thresholdPercent || Math.abs(variance) >= 100) {
+    if (
+      variancePercent >= thresholdPercent ||
+      Math.abs(variance) >= CASH_REGISTER_CONSTANTS.VARIANCE_ALERT_THRESHOLD
+    ) {
       const stationId = cashRegister.shift.nozzle.dispenser.stationId;
 
-      const priority = variancePercent >= 5 || Math.abs(variance) >= 500
-        ? AlertPriority.HIGH
-        : AlertPriority.MEDIUM;
+      const priority =
+        variancePercent >= 5 ||
+        Math.abs(variance) >= CASH_REGISTER_CONSTANTS.VARIANCE_BLOCK_THRESHOLD
+          ? AlertPriority.HIGH
+          : AlertPriority.MEDIUM;
 
       await this.alertService.create({
         stationId,
@@ -189,16 +217,16 @@ export class AlertTriggerService {
     if (!shift) return;
 
     const variance = indexVolume - calculatedVolume;
-    const variancePercent = calculatedVolume > 0
-      ? Math.abs((variance / calculatedVolume) * 100)
-      : 0;
+    const variancePercent =
+      calculatedVolume > 0 ? Math.abs((variance / calculatedVolume) * 100) : 0;
 
     if (variancePercent >= thresholdPercent && Math.abs(variance) >= 5) {
       const stationId = shift.nozzle.dispenser.stationId;
 
-      const priority = variancePercent >= 3 || Math.abs(variance) >= 50
-        ? AlertPriority.HIGH
-        : AlertPriority.MEDIUM;
+      const priority =
+        variancePercent >= 3 || Math.abs(variance) >= 50
+          ? AlertPriority.HIGH
+          : AlertPriority.MEDIUM;
 
       await this.alertService.create({
         stationId,
@@ -215,7 +243,10 @@ export class AlertTriggerService {
   /**
    * Vérifie le crédit client proche de la limite
    */
-  async checkCreditLimit(client: Client, thresholdPercent = 80): Promise<void> {
+  async checkCreditLimit(
+    client: Client,
+    thresholdPercent: number = CLIENT_CONSTANTS.CREDIT_LIMIT_WARNING_PERCENT,
+  ): Promise<void> {
     const creditLimit = Number(client.creditLimit);
     const currentBalance = Number(client.currentBalance);
 
@@ -231,9 +262,8 @@ export class AlertTriggerService {
       );
 
       if (!hasActive) {
-        const priority = usagePercent >= 100
-          ? AlertPriority.HIGH
-          : AlertPriority.MEDIUM;
+        const priority =
+          usagePercent >= 100 ? AlertPriority.HIGH : AlertPriority.MEDIUM;
 
         const clientName = client.companyName || client.contactName || 'Client';
 
@@ -241,9 +271,10 @@ export class AlertTriggerService {
           stationId: client.stationId,
           alertType: AlertType.CREDIT_LIMIT,
           priority,
-          title: usagePercent >= 100
-            ? `Crédit dépassé: ${clientName}`
-            : `Crédit proche limite: ${clientName}`,
+          title:
+            usagePercent >= 100
+              ? `Crédit dépassé: ${clientName}`
+              : `Crédit proche limite: ${clientName}`,
           message: `${clientName} a utilisé ${usagePercent.toFixed(0)}% de son crédit. Solde: ${currentBalance.toFixed(2)} MAD / Limite: ${creditLimit.toFixed(2)} MAD`,
           relatedEntityId: client.id,
           relatedEntityType: 'Client',
@@ -293,7 +324,8 @@ export class AlertTriggerService {
       if (!hasActive) {
         const isOverdue = maintenance.scheduledAt < now;
         const daysUntil = Math.ceil(
-          (maintenance.scheduledAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+          (maintenance.scheduledAt.getTime() - now.getTime()) /
+            (1000 * 60 * 60 * 24),
         );
 
         let equipmentName = 'Équipement';
@@ -338,7 +370,9 @@ export class AlertTriggerService {
     await this.checkShiftDuration();
 
     // Vérifier les stocks bas
-    const tanks = await this.prisma.tank.findMany({ where: { isActive: true } });
+    const tanks = await this.prisma.tank.findMany({
+      where: { isActive: true },
+    });
     for (const tank of tanks) {
       await this.checkLowStock(tank);
     }
@@ -360,7 +394,9 @@ export class AlertTriggerService {
     const finalCount = await this.alertService.countActive();
     const alertsCreated = finalCount - initialCount;
 
-    this.logger.log(`Vérifications terminées: ${alertsCreated} nouvelle(s) alerte(s)`);
+    this.logger.log(
+      `Vérifications terminées: ${alertsCreated} nouvelle(s) alerte(s)`,
+    );
 
     return {
       checksRun: 4,

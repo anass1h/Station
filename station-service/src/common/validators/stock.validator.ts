@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/index.js';
-import type {
-  ValidationResult,
-  CapacityResult,
-  LevelResult,
-} from './types.js';
+import type { ValidationResult, CapacityResult, LevelResult } from './types.js';
 
 @Injectable()
 export class StockValidator {

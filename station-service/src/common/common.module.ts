@@ -1,34 +1,33 @@
-import { Module } from '@nestjs/common';
-import { ShiftValidator, SaleValidator, StockValidator } from './validators/index.js';
-import {
+import { Global, Module } from '@nestjs/common';
+import { PrismaModule } from '../prisma/index.js';
+
+// Validators
+import { ShiftValidator } from './validators/shift.validator.js';
+import { SaleValidator } from './validators/sale.validator.js';
+import { StockValidator } from './validators/stock.validator.js';
+
+// Calculators
+import { PriceCalculator } from './calculators/price.calculator.js';
+import { MarginCalculator } from './calculators/margin.calculator.js';
+import { ShiftCalculator } from './calculators/shift.calculator.js';
+import { StockCalculator } from './calculators/stock.calculator.js';
+
+// Services
+import { StockAtomicService } from './services/stock-atomic.service.js';
+
+const validators = [ShiftValidator, SaleValidator, StockValidator];
+const calculators = [
   PriceCalculator,
   MarginCalculator,
   ShiftCalculator,
   StockCalculator,
-} from './calculators/index.js';
+];
+const services = [StockAtomicService];
 
+@Global()
 @Module({
-  providers: [
-    // Validators
-    ShiftValidator,
-    SaleValidator,
-    StockValidator,
-    // Calculators
-    PriceCalculator,
-    MarginCalculator,
-    ShiftCalculator,
-    StockCalculator,
-  ],
-  exports: [
-    // Validators
-    ShiftValidator,
-    SaleValidator,
-    StockValidator,
-    // Calculators
-    PriceCalculator,
-    MarginCalculator,
-    ShiftCalculator,
-    StockCalculator,
-  ],
+  imports: [PrismaModule],
+  providers: [...validators, ...calculators, ...services],
+  exports: [...validators, ...calculators, ...services],
 })
 export class CommonModule {}

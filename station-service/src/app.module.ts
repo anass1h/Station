@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -23,7 +23,13 @@ import { AlertModule } from './alert/index.js';
 import { AuditLogModule } from './audit-log/index.js';
 import { DashboardModule } from './dashboard/index.js';
 import { LicenceModule, LicenceGuard } from './licence/index.js';
-import { CommonModule, CustomThrottlerGuard } from './common/index.js';
+import {
+  CommonModule,
+  CustomThrottlerGuard,
+  StationScopeGuard,
+  RequestIdMiddleware,
+  RequestLoggerMiddleware,
+} from './common/index.js';
 import { PompisteDebtModule } from './pompiste-debt/index.js';
 import { UserModule } from './user/index.js';
 
@@ -77,8 +83,19 @@ import { UserModule } from './user/index.js';
     },
     {
       provide: APP_GUARD,
+      useClass: StationScopeGuard,
+    },
+    {
+      provide: APP_GUARD,
       useClass: LicenceGuard,
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Ordre important : RequestId AVANT RequestLogger
+    consumer
+      .apply(RequestIdMiddleware, RequestLoggerMiddleware)
+      .forRoutes('*');
+  }
+}

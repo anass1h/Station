@@ -21,6 +21,7 @@ import {
 import { ClientType, UserRole } from '@prisma/client';
 import { JwtAuthGuard, RolesGuard } from '../auth/guards/index.js';
 import { Roles } from '../auth/decorators/index.js';
+import { StationScope } from '../common/decorators/index.js';
 import { ClientService } from './client.service.js';
 import { CreateClientDto, UpdateClientDto } from './dto/index.js';
 
@@ -44,8 +45,17 @@ export class ClientController {
 
   @Get()
   @ApiOperation({ summary: 'Récupérer tous les clients actifs' })
-  @ApiQuery({ name: 'stationId', required: false, description: 'Filtrer par station' })
-  @ApiQuery({ name: 'clientType', required: false, enum: ClientType, description: 'Filtrer par type' })
+  @ApiQuery({
+    name: 'stationId',
+    required: false,
+    description: 'Filtrer par station',
+  })
+  @ApiQuery({
+    name: 'clientType',
+    required: false,
+    enum: ClientType,
+    description: 'Filtrer par type',
+  })
   @ApiResponse({ status: 200, description: 'Liste des clients' })
   async findAll(
     @Query('stationId') stationId?: string,
@@ -70,8 +80,11 @@ export class ClientController {
   @ApiParam({ name: 'id', description: 'UUID du client' })
   @ApiResponse({ status: 200, description: 'Client trouvé avec ses relations' })
   @ApiResponse({ status: 404, description: 'Client non trouvé' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.clientService.findOne(id);
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @StationScope() stationId: string | null,
+  ) {
+    return this.clientService.findOne(id, stationId);
   }
 
   @Patch(':id')
@@ -85,8 +98,9 @@ export class ClientController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateClientDto,
+    @StationScope() stationId: string | null,
   ) {
-    return this.clientService.update(id, dto);
+    return this.clientService.update(id, dto, stationId);
   }
 
   @Delete(':id')
@@ -94,10 +108,16 @@ export class ClientController {
   @ApiOperation({ summary: 'Désactiver un client (soft delete)' })
   @ApiParam({ name: 'id', description: 'UUID du client' })
   @ApiResponse({ status: 200, description: 'Client désactivé' })
-  @ApiResponse({ status: 403, description: 'Accès refusé - SUPER_ADMIN uniquement' })
+  @ApiResponse({
+    status: 403,
+    description: 'Accès refusé - SUPER_ADMIN uniquement',
+  })
   @ApiResponse({ status: 404, description: 'Client non trouvé' })
-  async remove(@Param('id', ParseUUIDPipe) id: string) {
-    await this.clientService.remove(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @StationScope() stationId: string | null,
+  ) {
+    await this.clientService.remove(id, stationId);
     return { message: 'Client désactivé avec succès' };
   }
 }

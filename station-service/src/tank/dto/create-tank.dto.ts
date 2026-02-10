@@ -48,7 +48,7 @@ export class CreateTankDto {
   currentLevel!: number;
 
   @ApiProperty({
-    description: 'Seuil d\'alerte bas en litres',
+    description: "Seuil d'alerte bas en litres",
     example: 5000,
   })
   @IsNumber()

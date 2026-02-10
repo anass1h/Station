@@ -32,10 +32,15 @@ export class PriceController {
 
   @Post()
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Créer un nouveau prix (clôture automatiquement l\'ancien)' })
+  @ApiOperation({
+    summary: "Créer un nouveau prix (clôture automatiquement l'ancien)",
+  })
   @ApiResponse({ status: 201, description: 'Prix créé avec succès' })
   @ApiResponse({ status: 400, description: 'Données invalides' })
-  @ApiResponse({ status: 404, description: 'Station ou type de carburant non trouvé' })
+  @ApiResponse({
+    status: 404,
+    description: 'Station ou type de carburant non trouvé',
+  })
   async create(
     @Body() dto: CreatePriceDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -44,7 +49,7 @@ export class PriceController {
   }
 
   @Get('current/:stationId')
-  @ApiOperation({ summary: 'Récupérer tous les prix actifs d\'une station' })
+  @ApiOperation({ summary: "Récupérer tous les prix actifs d'une station" })
   @ApiParam({ name: 'stationId', description: 'UUID de la station' })
   @ApiResponse({ status: 200, description: 'Liste des prix actifs' })
   @ApiResponse({ status: 404, description: 'Station non trouvée' })
@@ -53,7 +58,9 @@ export class PriceController {
   }
 
   @Get('current/:stationId/:fuelTypeId')
-  @ApiOperation({ summary: 'Récupérer le prix actif pour un type de carburant' })
+  @ApiOperation({
+    summary: 'Récupérer le prix actif pour un type de carburant',
+  })
   @ApiParam({ name: 'stationId', description: 'UUID de la station' })
   @ApiParam({ name: 'fuelTypeId', description: 'UUID du type de carburant' })
   @ApiResponse({ status: 200, description: 'Prix actif trouvé' })
@@ -66,11 +73,14 @@ export class PriceController {
   }
 
   @Get('history/:stationId/:fuelTypeId')
-  @ApiOperation({ summary: 'Récupérer l\'historique des prix' })
+  @ApiOperation({ summary: "Récupérer l'historique des prix" })
   @ApiParam({ name: 'stationId', description: 'UUID de la station' })
   @ApiParam({ name: 'fuelTypeId', description: 'UUID du type de carburant' })
   @ApiResponse({ status: 200, description: 'Historique des prix' })
-  @ApiResponse({ status: 404, description: 'Station ou type de carburant non trouvé' })
+  @ApiResponse({
+    status: 404,
+    description: 'Station ou type de carburant non trouvé',
+  })
   async getPriceHistory(
     @Param('stationId', ParseUUIDPipe) stationId: string,
     @Param('fuelTypeId', ParseUUIDPipe) fuelTypeId: string,
@@ -82,9 +92,17 @@ export class PriceController {
   @ApiOperation({ summary: 'Récupérer le prix à une date donnée' })
   @ApiParam({ name: 'stationId', description: 'UUID de la station' })
   @ApiParam({ name: 'fuelTypeId', description: 'UUID du type de carburant' })
-  @ApiQuery({ name: 'date', required: true, description: 'Date (ISO format)', example: '2026-01-15' })
+  @ApiQuery({
+    name: 'date',
+    required: true,
+    description: 'Date (ISO format)',
+    example: '2026-01-15',
+  })
   @ApiResponse({ status: 200, description: 'Prix à la date spécifiée' })
-  @ApiResponse({ status: 200, description: 'Aucun prix à cette date (retourne null)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Aucun prix à cette date (retourne null)',
+  })
   async getPriceAtDate(
     @Param('stationId', ParseUUIDPipe) stationId: string,
     @Param('fuelTypeId', ParseUUIDPipe) fuelTypeId: string,
@@ -95,9 +113,19 @@ export class PriceController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Récupérer l\'historique complet des prix avec filtres' })
-  @ApiQuery({ name: 'stationId', required: false, description: 'Filtrer par station' })
-  @ApiQuery({ name: 'fuelTypeId', required: false, description: 'Filtrer par type de carburant' })
+  @ApiOperation({
+    summary: "Récupérer l'historique complet des prix avec filtres",
+  })
+  @ApiQuery({
+    name: 'stationId',
+    required: false,
+    description: 'Filtrer par station',
+  })
+  @ApiQuery({
+    name: 'fuelTypeId',
+    required: false,
+    description: 'Filtrer par type de carburant',
+  })
   @ApiResponse({ status: 200, description: 'Liste des prix' })
   async findAll(
     @Query('stationId') stationId?: string,

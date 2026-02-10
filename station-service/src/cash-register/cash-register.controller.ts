@@ -36,7 +36,10 @@ export class CashRegisterController {
   @ApiResponse({ status: 201, description: 'Caisse clôturée avec succès' })
   @ApiResponse({ status: 400, description: 'Shift non clôturé ou déjà validé' })
   @ApiResponse({ status: 404, description: 'Shift non trouvé' })
-  @ApiResponse({ status: 409, description: 'Clôture déjà existante pour ce shift' })
+  @ApiResponse({
+    status: 409,
+    description: 'Clôture déjà existante pour ce shift',
+  })
   async close(
     @Body() dto: CloseCashRegisterDto,
     @Request() req: { user: { id: string } },
@@ -46,8 +49,16 @@ export class CashRegisterController {
 
   @Get()
   @ApiOperation({ summary: 'Récupérer toutes les clôtures de caisse' })
-  @ApiQuery({ name: 'stationId', required: false, description: 'Filtrer par station' })
-  @ApiQuery({ name: 'from', required: false, description: 'Date de début (ISO)' })
+  @ApiQuery({
+    name: 'stationId',
+    required: false,
+    description: 'Filtrer par station',
+  })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    description: 'Date de début (ISO)',
+  })
   @ApiQuery({ name: 'to', required: false, description: 'Date de fin (ISO)' })
   @ApiResponse({ status: 200, description: 'Liste des clôtures de caisse' })
   async findAll(
@@ -65,8 +76,16 @@ export class CashRegisterController {
   @Get('variances')
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Récupérer les clôtures avec écarts significatifs' })
-  @ApiQuery({ name: 'stationId', required: true, description: 'ID de la station' })
-  @ApiQuery({ name: 'minVariance', required: false, description: 'Écart minimum (valeur absolue)' })
+  @ApiQuery({
+    name: 'stationId',
+    required: true,
+    description: 'ID de la station',
+  })
+  @ApiQuery({
+    name: 'minVariance',
+    required: false,
+    description: 'Écart minimum (valeur absolue)',
+  })
   @ApiResponse({ status: 200, description: 'Liste des clôtures avec écarts' })
   async findWithVariance(
     @Query('stationId') stationId: string,
@@ -79,7 +98,7 @@ export class CashRegisterController {
   }
 
   @Get('shift/:shiftId')
-  @ApiOperation({ summary: 'Récupérer la clôture d\'un shift' })
+  @ApiOperation({ summary: "Récupérer la clôture d'un shift" })
   @ApiParam({ name: 'shiftId', description: 'UUID du shift' })
   @ApiResponse({ status: 200, description: 'Clôture de caisse du shift' })
   async findByShift(@Param('shiftId', ParseUUIDPipe) shiftId: string) {
@@ -89,7 +108,10 @@ export class CashRegisterController {
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer une clôture de caisse par son ID' })
   @ApiParam({ name: 'id', description: 'UUID de la clôture de caisse' })
-  @ApiResponse({ status: 200, description: 'Clôture de caisse trouvée avec ses relations' })
+  @ApiResponse({
+    status: 200,
+    description: 'Clôture de caisse trouvée avec ses relations',
+  })
   @ApiResponse({ status: 404, description: 'Clôture de caisse non trouvée' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.cashRegisterService.findOne(id);

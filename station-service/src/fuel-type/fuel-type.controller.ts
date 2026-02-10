@@ -32,7 +32,10 @@ export class FuelTypeController {
   @Post()
   @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Créer un nouveau type de carburant' })
-  @ApiResponse({ status: 201, description: 'Type de carburant créé avec succès' })
+  @ApiResponse({
+    status: 201,
+    description: 'Type de carburant créé avec succès',
+  })
   @ApiResponse({ status: 403, description: 'Accès refusé' })
   @ApiResponse({ status: 409, description: 'Code déjà existant' })
   async create(@Body() dto: CreateFuelTypeDto) {
@@ -75,7 +78,10 @@ export class FuelTypeController {
   @ApiOperation({ summary: 'Désactiver un type de carburant (soft delete)' })
   @ApiParam({ name: 'id', description: 'UUID du type de carburant' })
   @ApiResponse({ status: 200, description: 'Type de carburant désactivé' })
-  @ApiResponse({ status: 403, description: 'Accès refusé - SUPER_ADMIN uniquement' })
+  @ApiResponse({
+    status: 403,
+    description: 'Accès refusé - SUPER_ADMIN uniquement',
+  })
   @ApiResponse({ status: 404, description: 'Type de carburant non trouvé' })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.fuelTypeService.remove(id);

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ShiftStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/index.js';
+import { SHIFT_CONSTANTS } from '../constants/business.constants.js';
 import type {
   ValidationResult,
   IndexContinuityResult,
@@ -32,8 +33,8 @@ export class ShiftValidator {
     const expectedIndex = Number(lastShift.indexEnd);
     const gap = indexStart - expectedIndex;
 
-    // Tolérance de 0.5L
-    if (gap > 0.5) {
+    // Tolérance configurable
+    if (gap > SHIFT_CONSTANTS.INDEX_TOLERANCE_WARNING) {
       return {
         valid: false,
         message: `Écart d'index détecté: ${gap.toFixed(2)}L entre le dernier shift (${expectedIndex}) et l'index de début (${indexStart})`,
@@ -43,7 +44,7 @@ export class ShiftValidator {
       };
     }
 
-    if (gap < -0.5) {
+    if (gap < -SHIFT_CONSTANTS.INDEX_TOLERANCE_WARNING) {
       return {
         valid: false,
         message: `Index de début (${indexStart}) inférieur à l'index de fin du dernier shift (${expectedIndex})`,

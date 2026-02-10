@@ -19,7 +19,10 @@ export class CashRegisterService {
     private readonly pompisteDebtService: PompisteDebtService,
   ) {}
 
-  async close(dto: CloseCashRegisterDto, userId?: string): Promise<CashRegister & { debtCreated?: boolean }> {
+  async close(
+    dto: CloseCashRegisterDto,
+    userId?: string,
+  ): Promise<CashRegister & { debtCreated?: boolean }> {
     // Vérifier que le shift existe
     const shift = await this.prisma.shift.findUnique({
       where: { id: dto.shiftId },
@@ -75,7 +78,8 @@ export class CashRegisterService {
     const expectedByPaymentMethod = new Map<string, number>();
     for (const sale of sales) {
       for (const payment of sale.payments) {
-        const current = expectedByPaymentMethod.get(payment.paymentMethodId) || 0;
+        const current =
+          expectedByPaymentMethod.get(payment.paymentMethodId) || 0;
         expectedByPaymentMethod.set(
           payment.paymentMethodId,
           current + Number(payment.amount),
@@ -217,7 +221,9 @@ export class CashRegisterService {
     });
 
     if (!cashRegister) {
-      throw new NotFoundException(`Clôture de caisse avec l'ID ${id} non trouvée`);
+      throw new NotFoundException(
+        `Clôture de caisse avec l'ID ${id} non trouvée`,
+      );
     }
 
     return cashRegister;
@@ -319,10 +325,7 @@ export class CashRegisterService {
             },
           },
         },
-        OR: [
-          { variance: { gt: threshold } },
-          { variance: { lt: -threshold } },
-        ],
+        OR: [{ variance: { gt: threshold } }, { variance: { lt: -threshold } }],
       },
       include: {
         shift: {
@@ -348,10 +351,7 @@ export class CashRegisterService {
           },
         },
       },
-      orderBy: [
-        { variance: 'desc' },
-        { closedAt: 'desc' },
-      ],
+      orderBy: [{ variance: 'desc' }, { closedAt: 'desc' }],
     });
 
     return cashRegisters;

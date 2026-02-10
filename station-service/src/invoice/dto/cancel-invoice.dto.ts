@@ -3,7 +3,7 @@ import { IsString, MinLength } from 'class-validator';
 
 export class CancelInvoiceDto {
   @ApiProperty({
-    description: 'Motif d\'annulation',
+    description: "Motif d'annulation",
     example: 'Erreur de facturation - doublon',
   })
   @IsString()

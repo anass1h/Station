@@ -7,6 +7,13 @@ import {
 import { Alert, AlertPriority, AlertStatus, AlertType } from '@prisma/client';
 import { PrismaService } from '../prisma/index.js';
 import { CreateAlertDto } from './dto/index.js';
+import { PaginationDto } from '../common/dto/pagination.dto.js';
+import {
+  PaginatedResponse,
+  buildPaginatedResponse,
+  toPrismaQuery,
+  toDateRangeFilter,
+} from '../common/interfaces/paginated-result.interface.js';
 
 @Injectable()
 export class AlertService {
@@ -40,35 +47,54 @@ export class AlertService {
   }
 
   async findAll(
-    stationId?: string,
-    status?: AlertStatus,
-    priority?: AlertPriority,
-  ): Promise<Alert[]> {
-    return this.prisma.alert.findMany({
-      where: {
-        ...(stationId && { stationId }),
-        ...(status && { status }),
-        ...(priority && { priority }),
-      },
-      include: {
-        station: {
-          select: { id: true, name: true },
+    pagination: PaginationDto,
+    stationId?: string | null,
+    filters?: {
+      dateFrom?: string;
+      dateTo?: string;
+      alertType?: AlertType;
+      priority?: AlertPriority;
+      status?: AlertStatus;
+    },
+  ): Promise<PaginatedResponse<Alert>> {
+    const { page = 1, perPage = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
+    const { skip, take, orderBy } = toPrismaQuery(page, perPage, sortBy, sortOrder);
+
+    const dateFilter = toDateRangeFilter(filters?.dateFrom, filters?.dateTo);
+
+    const where = {
+      ...(stationId && { stationId }),
+      ...(dateFilter && { createdAt: dateFilter }),
+      ...(filters?.alertType && { alertType: filters.alertType }),
+      ...(filters?.priority && { priority: filters.priority }),
+      ...(filters?.status && { status: filters.status }),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.alert.findMany({
+        where,
+        include: {
+          station: {
+            select: { id: true, name: true },
+          },
+          acknowledgedBy: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+          resolvedBy: {
+            select: { id: true, firstName: true, lastName: true },
+          },
         },
-        acknowledgedBy: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-        resolvedBy: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-      },
-      orderBy: [
-        { priority: 'desc' },
-        { triggeredAt: 'desc' },
-      ],
-    });
+        orderBy,
+        skip,
+        take,
+      }),
+      this.prisma.alert.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(data, total, page, perPage);
   }
 
-  async findOne(id: string): Promise<Alert> {
+  async findOne(id: string, userStationId?: string | null): Promise<Alert> {
     const alert = await this.prisma.alert.findUnique({
       where: { id },
       include: {
@@ -86,6 +112,11 @@ export class AlertService {
       throw new NotFoundException(`Alerte avec l'ID ${id} non trouvée`);
     }
 
+    // Vérification multi-tenant
+    if (userStationId && alert.stationId !== userStationId) {
+      throw new NotFoundException(`Alerte avec l'ID ${id} non trouvée`);
+    }
+
     return alert;
   }
 
@@ -98,8 +129,12 @@ export class AlertService {
     });
   }
 
-  async acknowledge(id: string, userId: string): Promise<Alert> {
-    await this.findOne(id);
+  async acknowledge(
+    id: string,
+    userId: string,
+    userStationId?: string | null,
+  ): Promise<Alert> {
+    await this.findOne(id, userStationId);
 
     // Verify user exists before updating
     const user = await this.prisma.user.findUnique({
@@ -107,7 +142,9 @@ export class AlertService {
     });
 
     if (!user) {
-      throw new BadRequestException(`Utilisateur avec l'ID ${userId} non trouvé`);
+      throw new BadRequestException(
+        `Utilisateur avec l'ID ${userId} non trouvé`,
+      );
     }
 
     try {
@@ -126,17 +163,27 @@ export class AlertService {
         },
       });
 
-      this.logger.log(`Alerte acquittée: ${alert.title} par utilisateur ${userId}`);
+      this.logger.log(
+        `Alerte acquittée: ${alert.title} par utilisateur ${userId}`,
+      );
 
       return alert;
     } catch (error) {
-      this.logger.error(`Erreur lors de l'acquittement de l'alerte ${id}: ${error}`);
-      throw new BadRequestException(`Impossible d'acquitter l'alerte: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      this.logger.error(
+        `Erreur lors de l'acquittement de l'alerte ${id}: ${error}`,
+      );
+      throw new BadRequestException(
+        `Impossible d'acquitter l'alerte: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+      );
     }
   }
 
-  async resolve(id: string, userId: string): Promise<Alert> {
-    await this.findOne(id);
+  async resolve(
+    id: string,
+    userId: string,
+    userStationId?: string | null,
+  ): Promise<Alert> {
+    await this.findOne(id, userStationId);
 
     // Verify user exists before updating
     const user = await this.prisma.user.findUnique({
@@ -144,7 +191,9 @@ export class AlertService {
     });
 
     if (!user) {
-      throw new BadRequestException(`Utilisateur avec l'ID ${userId} non trouvé`);
+      throw new BadRequestException(
+        `Utilisateur avec l'ID ${userId} non trouvé`,
+      );
     }
 
     try {
@@ -163,17 +212,23 @@ export class AlertService {
         },
       });
 
-      this.logger.log(`Alerte résolue: ${alert.title} par utilisateur ${userId}`);
+      this.logger.log(
+        `Alerte résolue: ${alert.title} par utilisateur ${userId}`,
+      );
 
       return alert;
     } catch (error) {
-      this.logger.error(`Erreur lors de la résolution de l'alerte ${id}: ${error}`);
-      throw new BadRequestException(`Impossible de résoudre l'alerte: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      this.logger.error(
+        `Erreur lors de la résolution de l'alerte ${id}: ${error}`,
+      );
+      throw new BadRequestException(
+        `Impossible de résoudre l'alerte: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+      );
     }
   }
 
-  async ignore(id: string): Promise<Alert> {
-    await this.findOne(id);
+  async ignore(id: string, userStationId?: string | null): Promise<Alert> {
+    await this.findOne(id, userStationId);
 
     const alert = await this.prisma.alert.update({
       where: { id },

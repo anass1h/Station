@@ -18,7 +18,9 @@ export class NozzleService {
       where: { id: dto.dispenserId },
     });
     if (!dispenser) {
-      throw new NotFoundException(`Distributeur avec l'ID ${dto.dispenserId} non trouvé`);
+      throw new NotFoundException(
+        `Distributeur avec l'ID ${dto.dispenserId} non trouvé`,
+      );
     }
 
     // Vérifier que la cuve existe
@@ -34,7 +36,9 @@ export class NozzleService {
       where: { id: dto.fuelTypeId },
     });
     if (!fuelType) {
-      throw new NotFoundException(`Type de carburant avec l'ID ${dto.fuelTypeId} non trouvé`);
+      throw new NotFoundException(
+        `Type de carburant avec l'ID ${dto.fuelTypeId} non trouvé`,
+      );
     }
 
     // Vérifier la cohérence tank.fuelTypeId === dto.fuelTypeId
@@ -89,14 +93,11 @@ export class NozzleService {
         tank: true,
         fuelType: true,
       },
-      orderBy: [
-        { dispenser: { reference: 'asc' } },
-        { position: 'asc' },
-      ],
+      orderBy: [{ dispenser: { reference: 'asc' } }, { position: 'asc' }],
     });
   }
 
-  async findOne(id: string): Promise<Nozzle> {
+  async findOne(id: string, userStationId?: string | null): Promise<Nozzle> {
     const nozzle = await this.prisma.nozzle.findUnique({
       where: { id },
       include: {
@@ -114,11 +115,20 @@ export class NozzleService {
       throw new NotFoundException(`Pistolet avec l'ID ${id} non trouvé`);
     }
 
+    // Vérification multi-tenant via dispenser.stationId
+    if (userStationId && nozzle.dispenser.stationId !== userStationId) {
+      throw new NotFoundException(`Pistolet avec l'ID ${id} non trouvé`);
+    }
+
     return nozzle;
   }
 
-  async update(id: string, dto: UpdateNozzleDto): Promise<Nozzle> {
-    const nozzle = await this.findOne(id);
+  async update(
+    id: string,
+    dto: UpdateNozzleDto,
+    userStationId?: string | null,
+  ): Promise<Nozzle> {
+    const nozzle = await this.findOne(id, userStationId);
 
     // Vérifier la cuve si modifiée
     if (dto.tankId && dto.tankId !== nozzle.tankId) {
@@ -144,7 +154,9 @@ export class NozzleService {
         where: { id: dto.fuelTypeId },
       });
       if (!fuelType) {
-        throw new NotFoundException(`Type de carburant avec l'ID ${dto.fuelTypeId} non trouvé`);
+        throw new NotFoundException(
+          `Type de carburant avec l'ID ${dto.fuelTypeId} non trouvé`,
+        );
       }
 
       // Vérifier la cohérence avec la cuve
@@ -191,8 +203,8 @@ export class NozzleService {
     });
   }
 
-  async remove(id: string): Promise<void> {
-    await this.findOne(id);
+  async remove(id: string, userStationId?: string | null): Promise<void> {
+    await this.findOne(id, userStationId);
 
     await this.prisma.nozzle.update({
       where: { id },

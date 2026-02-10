@@ -10,6 +10,13 @@ import { PrismaService } from '../prisma/index.js';
 import { StockValidator } from '../common/validators/index.js';
 import { StockCalculator } from '../common/calculators/index.js';
 import { CreateDeliveryDto } from './dto/index.js';
+import { PaginationDto } from '../common/dto/pagination.dto.js';
+import {
+  PaginatedResponse,
+  buildPaginatedResponse,
+  toPrismaQuery,
+  toDateRangeFilter,
+} from '../common/interfaces/paginated-result.interface.js';
 
 @Injectable()
 export class DeliveryService {
@@ -43,7 +50,9 @@ export class DeliveryService {
     });
 
     if (!supplier) {
-      throw new NotFoundException(`Fournisseur avec l'ID ${dto.supplierId} non trouvé`);
+      throw new NotFoundException(
+        `Fournisseur avec l'ID ${dto.supplierId} non trouvé`,
+      );
     }
 
     if (!supplier.isActive) {
@@ -62,7 +71,10 @@ export class DeliveryService {
     }
 
     // Utiliser le validator pour vérifier la capacité de la cuve
-    const capacityCheck = await this.stockValidator.validateTankCapacity(dto.tankId, dto.quantity);
+    const capacityCheck = await this.stockValidator.validateTankCapacity(
+      dto.tankId,
+      dto.quantity,
+    );
     if (!capacityCheck.valid) {
       throw new BadRequestException(capacityCheck.message);
     }
@@ -139,7 +151,7 @@ export class DeliveryService {
     return delivery;
   }
 
-  async findOne(id: string): Promise<Delivery> {
+  async findOne(id: string, userStationId?: string | null): Promise<Delivery> {
     const delivery = await this.prisma.delivery.findUnique({
       where: { id },
       include: {
@@ -161,6 +173,11 @@ export class DeliveryService {
     });
 
     if (!delivery) {
+      throw new NotFoundException(`Livraison avec l'ID ${id} non trouvée`);
+    }
+
+    // Vérification multi-tenant via tank.stationId
+    if (userStationId && delivery.tank.stationId !== userStationId) {
       throw new NotFoundException(`Livraison avec l'ID ${id} non trouvée`);
     }
 
@@ -204,6 +221,61 @@ export class DeliveryService {
       },
       orderBy: { deliveredAt: 'desc' },
     });
+  }
+
+  async findAll(
+    pagination: PaginationDto,
+    stationId?: string | null,
+    filters?: {
+      dateFrom?: string;
+      dateTo?: string;
+      tankId?: string;
+      supplierId?: string;
+    },
+  ): Promise<PaginatedResponse<Delivery>> {
+    const { page = 1, perPage = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
+    const { skip, take, orderBy } = toPrismaQuery(page, perPage, sortBy, sortOrder);
+
+    const dateFilter = toDateRangeFilter(filters?.dateFrom, filters?.dateTo);
+
+    const where = {
+      ...(stationId && {
+        tank: {
+          stationId,
+        },
+      }),
+      ...(dateFilter && { createdAt: dateFilter }),
+      ...(filters?.tankId && { tankId: filters.tankId }),
+      ...(filters?.supplierId && { supplierId: filters.supplierId }),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.delivery.findMany({
+        where,
+        include: {
+          tank: {
+            include: {
+              station: true,
+              fuelType: true,
+            },
+          },
+          supplier: true,
+          receivedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+        orderBy,
+        skip,
+        take,
+      }),
+      this.prisma.delivery.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(data, total, page, perPage);
   }
 
   async findByStation(
@@ -289,14 +361,20 @@ export class DeliveryService {
       },
     });
 
-    const totalQuantity = deliveries.reduce((sum, d) => sum + Number(d.quantity), 0);
+    const totalQuantity = deliveries.reduce(
+      (sum, d) => sum + Number(d.quantity),
+      0,
+    );
     const totalValue = deliveries.reduce(
       (sum, d) => sum + Number(d.quantity) * Number(d.purchasePrice),
       0,
     );
 
     // Agrégation par type de carburant
-    const byFuelTypeMap = new Map<string, { name: string; quantity: number; value: number }>();
+    const byFuelTypeMap = new Map<
+      string,
+      { name: string; quantity: number; value: number }
+    >();
     for (const delivery of deliveries) {
       const fuelTypeId = delivery.tank.fuelTypeId;
       const existing = byFuelTypeMap.get(fuelTypeId) || {
@@ -305,12 +383,16 @@ export class DeliveryService {
         value: 0,
       };
       existing.quantity += Number(delivery.quantity);
-      existing.value += Number(delivery.quantity) * Number(delivery.purchasePrice);
+      existing.value +=
+        Number(delivery.quantity) * Number(delivery.purchasePrice);
       byFuelTypeMap.set(fuelTypeId, existing);
     }
 
     // Agrégation par fournisseur
-    const bySupplierMap = new Map<string, { name: string; quantity: number; value: number }>();
+    const bySupplierMap = new Map<
+      string,
+      { name: string; quantity: number; value: number }
+    >();
     for (const delivery of deliveries) {
       const existing = bySupplierMap.get(delivery.supplierId) || {
         name: delivery.supplier.name,
@@ -318,7 +400,8 @@ export class DeliveryService {
         value: 0,
       };
       existing.quantity += Number(delivery.quantity);
-      existing.value += Number(delivery.quantity) * Number(delivery.purchasePrice);
+      existing.value +=
+        Number(delivery.quantity) * Number(delivery.purchasePrice);
       bySupplierMap.set(delivery.supplierId, existing);
     }
 
@@ -350,7 +433,8 @@ export class DeliveryService {
     avgDailyConsumption: number;
   }> {
     const varianceResult = await this.stockCalculator.calculateVariance(tankId);
-    const daysResult = await this.stockCalculator.calculateDaysRemaining(tankId);
+    const daysResult =
+      await this.stockCalculator.calculateDaysRemaining(tankId);
 
     return {
       theoretical: varianceResult.theoretical,

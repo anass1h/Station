@@ -24,7 +24,10 @@ export class MarginCalculator {
   /**
    * Calcule le pourcentage de marge
    */
-  calculateMarginPercent(sellingPriceHT: number, purchasePrice: number): number {
+  calculateMarginPercent(
+    sellingPriceHT: number,
+    purchasePrice: number,
+  ): number {
     if (purchasePrice === 0) {
       return 0;
     }

@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNumber, IsString, IsUUID, Min, MinLength } from 'class-validator';
+import {
+  IsInt,
+  IsNumber,
+  IsString,
+  IsUUID,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class CreateNozzleDto {
   @ApiProperty({
