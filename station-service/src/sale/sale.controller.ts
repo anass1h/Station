@@ -16,10 +16,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
-import { Roles } from '../auth/decorators/index.js';
+import { Roles, CurrentUser } from '../auth/decorators/index.js';
 import { StationScope } from '../common/decorators/index.js';
 import { SaleService } from './sale.service.js';
 import { CreateSaleDto } from './dto/index.js';
+import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy.js';
 
 @ApiTags('sales')
 @ApiBearerAuth()
@@ -39,8 +40,11 @@ export class SaleController {
     status: 404,
     description: 'Shift, type de carburant ou client non trouvé',
   })
-  async create(@Body() dto: CreateSaleDto) {
-    return this.saleService.create(dto);
+  async create(
+    @Body() dto: CreateSaleDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.saleService.create(dto, user.id, user.role);
   }
 
   @Get('recent')

@@ -14,6 +14,12 @@ export interface OpenShiftResult extends ValidationResult {
   existingShiftId?: string;
 }
 
+export interface ShiftDurationCheckResult extends ValidationResult {
+  warn?: boolean;
+  block?: boolean;
+  hours?: number;
+}
+
 // Sale validator types
 export interface PaymentTotalResult extends ValidationResult {
   expected?: number;

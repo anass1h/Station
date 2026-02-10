@@ -73,6 +73,15 @@ export class CreateDeliveryDto {
   @IsNumber()
   temperature?: number;
 
+  @ApiPropertyOptional({
+    description: 'Quantité commandée en litres (pour calcul écart livraison)',
+    example: 20000,
+  })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  orderedQuantity?: number;
+
   @ApiProperty({
     description: 'Date et heure de livraison (ISO)',
     example: '2024-01-15T10:30:00.000Z',

@@ -19,6 +19,8 @@ import {
   AdjustmentsHorizontalIcon,
   CreditCardIcon,
   ExclamationCircleIcon,
+  BuildingStorefrontIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import {
   ChartBarIcon as ChartBarIconSolid,
@@ -39,6 +41,8 @@ import {
   AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
   CreditCardIcon as CreditCardIconSolid,
   ExclamationCircleIcon as ExclamationCircleIconSolid,
+  BuildingStorefrontIcon as BuildingStorefrontIconSolid,
+  ClipboardDocumentListIcon as ClipboardDocumentListIconSolid,
 } from '@heroicons/react/24/solid';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -88,6 +92,9 @@ const alertNavItems: NavItem[] = [
 
 const adminNavItems: NavItem[] = [
   { name: 'Gestion Clients', path: '/admin/clients', icon: KeyIcon, iconSolid: KeyIconSolid, roles: ['SUPER_ADMIN'] },
+  { name: 'Stations', path: '/admin/stations', icon: BuildingStorefrontIcon, iconSolid: BuildingStorefrontIconSolid, roles: ['SUPER_ADMIN'] },
+  { name: 'Utilisateurs', path: '/admin/users', icon: UserGroupIcon, iconSolid: UserGroupIconSolid, roles: ['SUPER_ADMIN'] },
+  { name: 'Journal d\'audit', path: '/admin/audit-logs', icon: ClipboardDocumentListIcon, iconSolid: ClipboardDocumentListIconSolid, roles: ['SUPER_ADMIN'] },
 ];
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {

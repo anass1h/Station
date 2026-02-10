@@ -10,6 +10,13 @@ export interface Shift {
   endedAt: string | null;
   status: 'OPEN' | 'CLOSED' | 'VALIDATED';
   incidentNote: string | null;
+  validatedByUserId: string | null;
+  validatedAt: string | null;
+  validatedBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
   nozzle?: {
     id: string;
     reference: string;

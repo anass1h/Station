@@ -13,6 +13,8 @@ export interface Delivery {
   levelBefore: number;
   levelAfter: number;
   temperature: number | null;
+  orderedQuantity: number | null;
+  deliveryVariance: number | null;
   deliveryDate: string;
   createdAt: string;
   tank?: {
@@ -44,6 +46,7 @@ export interface CreateDeliveryDto {
   levelBefore: number;
   levelAfter: number;
   temperature?: number;
+  orderedQuantity?: number;
   deliveryDate?: string;
 }
 

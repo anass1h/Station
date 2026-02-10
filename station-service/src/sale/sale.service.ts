@@ -1,15 +1,17 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Sale } from '@prisma/client';
+import { Sale, MovementType, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/index.js';
 import { SaleValidator } from '../common/validators/index.js';
 import {
   PriceCalculator,
   MarginCalculator,
 } from '../common/calculators/index.js';
+import { AlertTriggerService } from '../alert/alert-trigger.service.js';
 import { CreateSaleDto } from './dto/index.js';
 import { PaginationDto } from '../common/dto/pagination.dto.js';
 import {
@@ -26,6 +28,7 @@ export class SaleService {
     private readonly saleValidator: SaleValidator,
     private readonly priceCalculator: PriceCalculator,
     private readonly marginCalculator: MarginCalculator,
+    private readonly alertTriggerService: AlertTriggerService,
   ) {}
 
   /**
@@ -87,7 +90,11 @@ export class SaleService {
     };
   }
 
-  async create(dto: CreateSaleDto): Promise<Sale> {
+  async create(
+    dto: CreateSaleDto,
+    userId?: string,
+    userRole?: UserRole,
+  ): Promise<Sale> {
     // Vérifier que le shift existe et est OPEN
     const shift = await this.prisma.shift.findUnique({
       where: { id: dto.shiftId },
@@ -95,6 +102,7 @@ export class SaleService {
         nozzle: {
           include: {
             dispenser: true,
+            tank: true,
           },
         },
       },
@@ -102,6 +110,18 @@ export class SaleService {
 
     if (!shift) {
       throw new NotFoundException(`Shift avec l'ID ${dto.shiftId} non trouvé`);
+    }
+
+    // Vérifier l'appartenance du shift au pompiste (sauf GESTIONNAIRE/SUPER_ADMIN)
+    if (
+      userId &&
+      userRole !== UserRole.GESTIONNAIRE &&
+      userRole !== UserRole.SUPER_ADMIN &&
+      shift.pompisteId !== userId
+    ) {
+      throw new ForbiddenException(
+        'Vous ne pouvez enregistrer des ventes que sur votre propre shift',
+      );
     }
 
     // Utiliser le validator pour vérifier le statut du shift
@@ -132,6 +152,14 @@ export class SaleService {
           `Client avec l'ID ${dto.clientId} non trouvé`,
         );
       }
+    }
+
+    // Vérifier qu'aucune livraison récente n'est en cours sur le tank
+    const tankId = shift.nozzle.tankId;
+    const deliveryCheck =
+      await this.saleValidator.validateNoActiveDelivery(tankId);
+    if (!deliveryCheck.valid) {
+      throw new BadRequestException(deliveryCheck.message);
     }
 
     // Utiliser le calculator pour récupérer le prix actif
@@ -177,51 +205,91 @@ export class SaleService {
       throw new BadRequestException(paymentCheck.message);
     }
 
-    // Créer la vente avec ses paiements en transaction
-    return this.prisma.sale.create({
-      data: {
-        shiftId: dto.shiftId,
-        fuelTypeId: dto.fuelTypeId,
-        clientId: dto.clientId,
-        quantity: dto.quantity,
-        unitPrice,
-        totalAmount,
-        soldAt: new Date(),
-        payments: {
-          create: dto.payments.map((p) => ({
-            paymentMethodId: p.paymentMethodId,
-            amount: p.amount,
-            reference: p.reference,
-          })),
+    // Créer la vente avec stock movement en transaction
+    const saleUserId = userId || shift.pompisteId;
+
+    const sale = await this.prisma.$transaction(async (tx) => {
+      // Créer la vente avec ses paiements
+      const newSale = await tx.sale.create({
+        data: {
+          shiftId: dto.shiftId,
+          fuelTypeId: dto.fuelTypeId,
+          clientId: dto.clientId,
+          quantity: dto.quantity,
+          unitPrice,
+          totalAmount,
+          soldAt: new Date(),
+          payments: {
+            create: dto.payments.map((p) => ({
+              paymentMethodId: p.paymentMethodId,
+              amount: p.amount,
+              reference: p.reference,
+            })),
+          },
         },
-      },
-      include: {
-        fuelType: true,
-        client: true,
-        shift: {
-          include: {
-            pompiste: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                badgeCode: true,
+        include: {
+          fuelType: true,
+          client: true,
+          shift: {
+            include: {
+              pompiste: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  badgeCode: true,
+                },
               },
-            },
-            nozzle: {
-              include: {
-                dispenser: { include: { station: true } },
+              nozzle: {
+                include: {
+                  dispenser: { include: { station: true } },
+                },
               },
             },
           },
-        },
-        payments: {
-          include: {
-            paymentMethod: true,
+          payments: {
+            include: {
+              paymentMethod: true,
+            },
           },
         },
-      },
+      });
+
+      // Décrémenter le niveau de la cuve
+      const updatedTank = await tx.tank.update({
+        where: { id: tankId },
+        data: {
+          currentLevel: {
+            decrement: dto.quantity,
+          },
+        },
+      });
+
+      // Créer le mouvement de stock (quantité négative pour une vente)
+      await tx.stockMovement.create({
+        data: {
+          tankId,
+          userId: saleUserId,
+          movementType: MovementType.SALE,
+          quantity: -dto.quantity,
+          balanceAfter: Number(updatedTank.currentLevel),
+          referenceId: newSale.id,
+          referenceType: 'SALE',
+        },
+      });
+
+      return newSale;
     });
+
+    // Vérifier le stock bas après la vente (hors transaction)
+    const updatedTank = await this.prisma.tank.findUnique({
+      where: { id: tankId },
+    });
+    if (updatedTank) {
+      await this.alertTriggerService.checkLowStock(updatedTank);
+    }
+
+    return sale;
   }
 
   async findOne(id: string, userStationId?: string | null): Promise<Sale> {

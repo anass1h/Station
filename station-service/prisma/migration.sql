@@ -1,3 +1,12 @@
+-- =============================================
+-- Station Service — Consolidated Migration
+-- Generated from schema.prisma (single file)
+-- =============================================
+
+-- ===========================================
+-- ENUMS
+-- ===========================================
+
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('POMPISTE', 'GESTIONNAIRE', 'SUPER_ADMIN');
 
@@ -31,10 +40,26 @@ CREATE TYPE "AlertPriority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL');
 -- CreateEnum
 CREATE TYPE "AlertStatus" AS ENUM ('ACTIVE', 'ACKNOWLEDGED', 'RESOLVED', 'IGNORED');
 
+-- CreateEnum
+CREATE TYPE "LicencePlan" AS ENUM ('BETA');
+
+-- CreateEnum
+CREATE TYPE "LicenceStatus" AS ENUM ('ACTIVE', 'EXPIRED', 'SUSPENDED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "DebtReason" AS ENUM ('CASH_VARIANCE', 'ADVANCE', 'DAMAGE', 'FUEL_LOSS', 'OTHER');
+
+-- CreateEnum
+CREATE TYPE "DebtStatus" AS ENUM ('PENDING', 'PARTIALLY_PAID', 'PAID', 'CANCELLED');
+
+-- ===========================================
+-- TABLES
+-- ===========================================
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
-    "stationId" TEXT,
+    "stationId" TEXT, -- NULL pour SUPER_ADMIN (propriétaire SaaS, non rattaché à une station)
     "email" TEXT,
     "passwordHash" TEXT,
     "badgeCode" TEXT,
@@ -45,10 +70,24 @@ CREATE TABLE "users" (
     "role" "UserRole" NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "lastLogin" TIMESTAMP(3),
+    "failedLoginAttempts" INTEGER NOT NULL DEFAULT 0,
+    "lockedUntil" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "refresh_tokens" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "revokedAt" TIMESTAMP(3),
+
+    CONSTRAINT "refresh_tokens_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -63,6 +102,7 @@ CREATE TABLE "stations" (
     "taxId" TEXT,
     "rc" TEXT,
     "patente" TEXT,
+    "stationCode" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -92,6 +132,7 @@ CREATE TABLE "tanks" (
     "lowThreshold" DECIMAL(12,2) NOT NULL,
     "reference" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "version" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -137,6 +178,9 @@ CREATE TABLE "shifts" (
     "endedAt" TIMESTAMP(3),
     "status" "ShiftStatus" NOT NULL DEFAULT 'OPEN',
     "incidentNote" TEXT,
+    "validatedByUserId" TEXT,
+    "validatedAt" TIMESTAMP(3),
+    "version" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -190,6 +234,7 @@ CREATE TABLE "cash_registers" (
     "actualTotal" DECIMAL(12,2) NOT NULL,
     "variance" DECIMAL(12,2) NOT NULL,
     "varianceNote" TEXT,
+    "version" INTEGER NOT NULL DEFAULT 0,
     "closedAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -218,6 +263,8 @@ CREATE TABLE "suppliers" (
     "phone" TEXT,
     "email" TEXT,
     "address" TEXT,
+    "ice" TEXT,
+    "taxId" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -237,6 +284,8 @@ CREATE TABLE "deliveries" (
     "levelBefore" DECIMAL(12,2) NOT NULL,
     "levelAfter" DECIMAL(12,2) NOT NULL,
     "temperature" DECIMAL(5,2),
+    "orderedQuantity" DECIMAL(12,2),
+    "deliveryVariance" DECIMAL(12,2),
     "deliveredAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -292,6 +341,7 @@ CREATE TABLE "clients" (
     "currentBalance" DECIMAL(12,2) NOT NULL DEFAULT 0,
     "paymentTermDays" INTEGER NOT NULL DEFAULT 30,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "version" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -314,6 +364,7 @@ CREATE TABLE "invoices" (
     "periodStart" DATE,
     "periodEnd" DATE,
     "notes" TEXT,
+    "version" INTEGER NOT NULL DEFAULT 0,
     "issuedAt" TIMESTAMP(3),
     "dueDate" TIMESTAMP(3),
     "paidAt" TIMESTAMP(3),
@@ -356,6 +407,7 @@ CREATE TABLE "invoice_payments" (
 -- CreateTable
 CREATE TABLE "credit_notes" (
     "id" TEXT NOT NULL,
+    "stationId" TEXT NOT NULL,
     "originalInvoiceId" TEXT NOT NULL,
     "creditNoteNumber" TEXT NOT NULL,
     "amountHT" DECIMAL(12,2) NOT NULL,
@@ -416,6 +468,27 @@ CREATE TABLE "alerts" (
 );
 
 -- CreateTable
+CREATE TABLE "licences" (
+    "id" TEXT NOT NULL,
+    "stationId" TEXT NOT NULL,
+    "plan" "LicencePlan" NOT NULL,
+    "status" "LicenceStatus" NOT NULL DEFAULT 'ACTIVE',
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3) NOT NULL,
+    "maxUsers" INTEGER NOT NULL DEFAULT 99,
+    "maxDispensers" INTEGER NOT NULL DEFAULT 99,
+    "maxTanks" INTEGER NOT NULL DEFAULT 99,
+    "maxStations" INTEGER NOT NULL DEFAULT 1,
+    "features" JSONB NOT NULL,
+    "gracePeriodDays" INTEGER NOT NULL DEFAULT 30,
+    "lastCheckedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "licences_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "audit_logs" (
     "id" TEXT NOT NULL,
     "userId" TEXT,
@@ -432,11 +505,64 @@ CREATE TABLE "audit_logs" (
     CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "pompiste_debts" (
+    "id" TEXT NOT NULL,
+    "pompisteId" TEXT NOT NULL,
+    "stationId" TEXT NOT NULL,
+    "amount" DECIMAL(12,2) NOT NULL,
+    "remainingAmount" DECIMAL(12,2) NOT NULL,
+    "reason" "DebtReason" NOT NULL,
+    "status" "DebtStatus" NOT NULL DEFAULT 'PENDING',
+    "description" TEXT,
+    "relatedEntityId" TEXT,
+    "relatedEntityType" TEXT,
+    "createdByUserId" TEXT NOT NULL,
+    "version" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "pompiste_debts_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "debt_payments" (
+    "id" TEXT NOT NULL,
+    "debtId" TEXT NOT NULL,
+    "amount" DECIMAL(12,2) NOT NULL,
+    "paymentMethod" TEXT NOT NULL,
+    "note" TEXT,
+    "receivedByUserId" TEXT NOT NULL,
+    "paymentDate" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "debt_payments_pkey" PRIMARY KEY ("id")
+);
+
+-- ===========================================
+-- UNIQUE INDEXES
+-- ===========================================
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_badgeCode_key" ON "users"("badgeCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "refresh_tokens_token_key" ON "refresh_tokens"("token");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "stations_ice_key" ON "stations"("ice");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "stations_taxId_key" ON "stations"("taxId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "stations_stationCode_key" ON "stations"("stationCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "stations_rc_city_key" ON "stations"("rc", "city");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "fuel_types_code_key" ON "fuel_types"("code");
@@ -459,197 +585,239 @@ CREATE UNIQUE INDEX "cash_registers_shiftId_key" ON "cash_registers"("shiftId");
 -- CreateIndex
 CREATE UNIQUE INDEX "deliveries_deliveryNoteNumber_key" ON "deliveries"("deliveryNoteNumber");
 
--- AddForeignKey
-ALTER TABLE "users" ADD CONSTRAINT "users_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "tanks" ADD CONSTRAINT "tanks_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "tanks" ADD CONSTRAINT "tanks_fuelTypeId_fkey" FOREIGN KEY ("fuelTypeId") REFERENCES "fuel_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "dispensers" ADD CONSTRAINT "dispensers_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "nozzles" ADD CONSTRAINT "nozzles_dispenserId_fkey" FOREIGN KEY ("dispenserId") REFERENCES "dispensers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "nozzles" ADD CONSTRAINT "nozzles_tankId_fkey" FOREIGN KEY ("tankId") REFERENCES "tanks"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "nozzles" ADD CONSTRAINT "nozzles_fuelTypeId_fkey" FOREIGN KEY ("fuelTypeId") REFERENCES "fuel_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "shifts" ADD CONSTRAINT "shifts_nozzleId_fkey" FOREIGN KEY ("nozzleId") REFERENCES "nozzles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "shifts" ADD CONSTRAINT "shifts_pompisteId_fkey" FOREIGN KEY ("pompisteId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "sales" ADD CONSTRAINT "sales_shiftId_fkey" FOREIGN KEY ("shiftId") REFERENCES "shifts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "sales" ADD CONSTRAINT "sales_fuelTypeId_fkey" FOREIGN KEY ("fuelTypeId") REFERENCES "fuel_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "sale_payments" ADD CONSTRAINT "sale_payments_saleId_fkey" FOREIGN KEY ("saleId") REFERENCES "sales"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "sale_payments" ADD CONSTRAINT "sale_payments_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "payment_methods"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "cash_registers" ADD CONSTRAINT "cash_registers_shiftId_fkey" FOREIGN KEY ("shiftId") REFERENCES "shifts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "payment_details" ADD CONSTRAINT "payment_details_cashRegisterId_fkey" FOREIGN KEY ("cashRegisterId") REFERENCES "cash_registers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "payment_details" ADD CONSTRAINT "payment_details_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "payment_methods"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_tankId_fkey" FOREIGN KEY ("tankId") REFERENCES "tanks"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "suppliers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_receivedByUserId_fkey" FOREIGN KEY ("receivedByUserId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_tankId_fkey" FOREIGN KEY ("tankId") REFERENCES "tanks"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "prices" ADD CONSTRAINT "prices_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "prices" ADD CONSTRAINT "prices_fuelTypeId_fkey" FOREIGN KEY ("fuelTypeId") REFERENCES "fuel_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "prices" ADD CONSTRAINT "prices_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "clients" ADD CONSTRAINT "clients_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "sales" ADD CONSTRAINT "sales_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "clients"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- CreateIndex
+CREATE UNIQUE INDEX "clients_stationId_ice_key" ON "clients"("stationId", "ice");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "invoices_invoiceNumber_key" ON "invoices"("invoiceNumber");
+CREATE UNIQUE INDEX "invoices_stationId_invoiceNumber_key" ON "invoices"("stationId", "invoiceNumber");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "credit_notes_creditNoteNumber_key" ON "credit_notes"("creditNoteNumber");
-
--- AddForeignKey
-ALTER TABLE "invoices" ADD CONSTRAINT "invoices_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "invoices" ADD CONSTRAINT "invoices_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "clients"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "invoice_lines" ADD CONSTRAINT "invoice_lines_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "invoices"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "invoice_lines" ADD CONSTRAINT "invoice_lines_fuelTypeId_fkey" FOREIGN KEY ("fuelTypeId") REFERENCES "fuel_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "invoice_payments" ADD CONSTRAINT "invoice_payments_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "invoice_payments" ADD CONSTRAINT "invoice_payments_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "payment_methods"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "credit_notes" ADD CONSTRAINT "credit_notes_originalInvoiceId_fkey" FOREIGN KEY ("originalInvoiceId") REFERENCES "invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "maintenance_logs" ADD CONSTRAINT "maintenance_logs_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "maintenance_logs" ADD CONSTRAINT "maintenance_logs_dispenserId_fkey" FOREIGN KEY ("dispenserId") REFERENCES "dispensers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "maintenance_logs" ADD CONSTRAINT "maintenance_logs_tankId_fkey" FOREIGN KEY ("tankId") REFERENCES "tanks"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "maintenance_logs" ADD CONSTRAINT "maintenance_logs_nozzleId_fkey" FOREIGN KEY ("nozzleId") REFERENCES "nozzles"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "maintenance_logs" ADD CONSTRAINT "maintenance_logs_performedByUserId_fkey" FOREIGN KEY ("performedByUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "alerts" ADD CONSTRAINT "alerts_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "alerts" ADD CONSTRAINT "alerts_acknowledgedByUserId_fkey" FOREIGN KEY ("acknowledgedByUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "alerts" ADD CONSTRAINT "alerts_resolvedByUserId_fkey" FOREIGN KEY ("resolvedByUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- CreateTable
-CREATE TABLE "refresh_tokens" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "token" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "revokedAt" TIMESTAMP(3),
-
-    CONSTRAINT "refresh_tokens_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
-CREATE UNIQUE INDEX "refresh_tokens_token_key" ON "refresh_tokens"("token");
-
--- CreateIndex
-CREATE INDEX "refresh_tokens_userId_idx" ON "refresh_tokens"("userId");
-
--- CreateIndex
-CREATE INDEX "refresh_tokens_expiresAt_idx" ON "refresh_tokens"("expiresAt");
-
--- AddForeignKey
-ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- CreateEnum
-CREATE TYPE "LicencePlan" AS ENUM ('TRIAL', 'BASIC', 'PREMIUM', 'ENTERPRISE');
-
--- CreateEnum
-CREATE TYPE "LicenceStatus" AS ENUM ('ACTIVE', 'EXPIRED', 'SUSPENDED', 'CANCELLED');
-
--- CreateTable
-CREATE TABLE "licences" (
-    "id" TEXT NOT NULL,
-    "stationId" TEXT NOT NULL,
-    "plan" "LicencePlan" NOT NULL,
-    "status" "LicenceStatus" NOT NULL DEFAULT 'ACTIVE',
-    "startDate" TIMESTAMP(3) NOT NULL,
-    "endDate" TIMESTAMP(3) NOT NULL,
-    "maxUsers" INTEGER NOT NULL DEFAULT 5,
-    "maxDispensers" INTEGER NOT NULL DEFAULT 4,
-    "features" JSONB,
-    "lastCheckedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "licences_pkey" PRIMARY KEY ("id")
-);
 
 -- CreateIndex
 CREATE UNIQUE INDEX "licences_stationId_key" ON "licences"("stationId");
 
 -- CreateIndex
-CREATE INDEX "licences_status_idx" ON "licences"("status");
+CREATE UNIQUE INDEX "suppliers_ice_key" ON "suppliers"("ice");
 
--- CreateIndex
+-- ===========================================
+-- PERFORMANCE INDEXES
+-- ===========================================
+
+-- users
+CREATE INDEX "users_stationId_idx" ON "users"("stationId");
+CREATE INDEX "users_role_idx" ON "users"("role");
+CREATE INDEX "users_isActive_idx" ON "users"("isActive");
+
+-- refresh_tokens
+CREATE INDEX "refresh_tokens_userId_idx" ON "refresh_tokens"("userId");
+CREATE INDEX "refresh_tokens_expiresAt_idx" ON "refresh_tokens"("expiresAt");
+
+-- stations
+CREATE INDEX "stations_isActive_idx" ON "stations"("isActive");
+CREATE INDEX "stations_city_idx" ON "stations"("city");
+
+-- fuel_types
+CREATE INDEX "fuel_types_isActive_idx" ON "fuel_types"("isActive");
+
+-- tanks
+CREATE INDEX "tanks_stationId_idx" ON "tanks"("stationId");
+CREATE INDEX "tanks_fuelTypeId_idx" ON "tanks"("fuelTypeId");
+CREATE INDEX "tanks_isActive_idx" ON "tanks"("isActive");
+
+-- dispensers
+CREATE INDEX "dispensers_stationId_idx" ON "dispensers"("stationId");
+CREATE INDEX "dispensers_isActive_idx" ON "dispensers"("isActive");
+
+-- nozzles
+CREATE INDEX "nozzles_dispenserId_idx" ON "nozzles"("dispenserId");
+CREATE INDEX "nozzles_tankId_idx" ON "nozzles"("tankId");
+CREATE INDEX "nozzles_isActive_idx" ON "nozzles"("isActive");
+
+-- shifts
+CREATE INDEX "shifts_status_idx" ON "shifts"("status");
+CREATE INDEX "shifts_pompisteId_idx" ON "shifts"("pompisteId");
+CREATE INDEX "shifts_nozzleId_idx" ON "shifts"("nozzleId");
+CREATE INDEX "shifts_startedAt_idx" ON "shifts"("startedAt");
+CREATE INDEX "shifts_pompisteId_status_idx" ON "shifts"("pompisteId", "status");
+
+-- sales
+CREATE INDEX "sales_createdAt_idx" ON "sales"("createdAt");
+CREATE INDEX "sales_shiftId_idx" ON "sales"("shiftId");
+CREATE INDEX "sales_fuelTypeId_idx" ON "sales"("fuelTypeId");
+CREATE INDEX "sales_clientId_idx" ON "sales"("clientId");
+CREATE INDEX "sales_soldAt_idx" ON "sales"("soldAt");
+
+-- payment_methods
+CREATE INDEX "payment_methods_isActive_idx" ON "payment_methods"("isActive");
+
+-- cash_registers
+CREATE INDEX "cash_registers_shiftId_idx" ON "cash_registers"("shiftId");
+CREATE INDEX "cash_registers_closedAt_idx" ON "cash_registers"("closedAt");
+
+-- suppliers
+CREATE INDEX "suppliers_isActive_idx" ON "suppliers"("isActive");
+CREATE INDEX "suppliers_name_idx" ON "suppliers"("name");
+
+-- deliveries
+CREATE INDEX "deliveries_tankId_idx" ON "deliveries"("tankId");
+CREATE INDEX "deliveries_supplierId_idx" ON "deliveries"("supplierId");
+CREATE INDEX "deliveries_deliveredAt_idx" ON "deliveries"("deliveredAt");
+
+-- stock_movements
+CREATE INDEX "stock_movements_tankId_idx" ON "stock_movements"("tankId");
+CREATE INDEX "stock_movements_movementType_idx" ON "stock_movements"("movementType");
+CREATE INDEX "stock_movements_createdAt_idx" ON "stock_movements"("createdAt");
+CREATE INDEX "stock_movements_tankId_createdAt_idx" ON "stock_movements"("tankId", "createdAt");
+
+-- prices
+CREATE INDEX "prices_stationId_fuelTypeId_idx" ON "prices"("stationId", "fuelTypeId");
+CREATE INDEX "prices_effectiveTo_idx" ON "prices"("effectiveTo");
+
+-- clients
+CREATE INDEX "clients_stationId_idx" ON "clients"("stationId");
+CREATE INDEX "clients_clientType_idx" ON "clients"("clientType");
+CREATE INDEX "clients_isActive_idx" ON "clients"("isActive");
+
+-- invoices
+CREATE INDEX "invoices_stationId_idx" ON "invoices"("stationId");
+CREATE INDEX "invoices_clientId_idx" ON "invoices"("clientId");
+CREATE INDEX "invoices_status_idx" ON "invoices"("status");
+CREATE INDEX "invoices_invoiceType_idx" ON "invoices"("invoiceType");
+CREATE INDEX "invoices_createdAt_idx" ON "invoices"("createdAt");
+CREATE INDEX "invoices_stationId_status_idx" ON "invoices"("stationId", "status");
+
+-- credit_notes
+CREATE INDEX "credit_notes_stationId_idx" ON "credit_notes"("stationId");
+
+-- alerts
+CREATE INDEX "alerts_stationId_idx" ON "alerts"("stationId");
+CREATE INDEX "alerts_status_idx" ON "alerts"("status");
+CREATE INDEX "alerts_priority_idx" ON "alerts"("priority");
+CREATE INDEX "alerts_alertType_idx" ON "alerts"("alertType");
+CREATE INDEX "alerts_stationId_status_idx" ON "alerts"("stationId", "status");
+CREATE INDEX "alerts_triggeredAt_idx" ON "alerts"("triggeredAt");
+
+-- licences
+CREATE INDEX "licences_status_idx" ON "licences"("status");
 CREATE INDEX "licences_endDate_idx" ON "licences"("endDate");
 
--- AddForeignKey
+-- audit_logs
+CREATE INDEX "audit_logs_userId_idx" ON "audit_logs"("userId");
+CREATE INDEX "audit_logs_entityType_idx" ON "audit_logs"("entityType");
+CREATE INDEX "audit_logs_entityType_entityId_idx" ON "audit_logs"("entityType", "entityId");
+CREATE INDEX "audit_logs_createdAt_idx" ON "audit_logs"("createdAt");
+CREATE INDEX "audit_logs_stationId_createdAt_idx" ON "audit_logs"("stationId", "createdAt");
+
+-- pompiste_debts
+CREATE INDEX "pompiste_debts_pompisteId_idx" ON "pompiste_debts"("pompisteId");
+CREATE INDEX "pompiste_debts_stationId_idx" ON "pompiste_debts"("stationId");
+CREATE INDEX "pompiste_debts_status_idx" ON "pompiste_debts"("status");
+CREATE INDEX "pompiste_debts_createdAt_idx" ON "pompiste_debts"("createdAt");
+
+-- debt_payments
+CREATE INDEX "debt_payments_debtId_idx" ON "debt_payments"("debtId");
+
+-- ===========================================
+-- FOREIGN KEYS
+-- ===========================================
+
+-- users
+ALTER TABLE "users" ADD CONSTRAINT "users_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- refresh_tokens
+ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- tanks
+ALTER TABLE "tanks" ADD CONSTRAINT "tanks_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "tanks" ADD CONSTRAINT "tanks_fuelTypeId_fkey" FOREIGN KEY ("fuelTypeId") REFERENCES "fuel_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- dispensers
+ALTER TABLE "dispensers" ADD CONSTRAINT "dispensers_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- nozzles
+ALTER TABLE "nozzles" ADD CONSTRAINT "nozzles_dispenserId_fkey" FOREIGN KEY ("dispenserId") REFERENCES "dispensers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "nozzles" ADD CONSTRAINT "nozzles_tankId_fkey" FOREIGN KEY ("tankId") REFERENCES "tanks"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "nozzles" ADD CONSTRAINT "nozzles_fuelTypeId_fkey" FOREIGN KEY ("fuelTypeId") REFERENCES "fuel_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- shifts
+ALTER TABLE "shifts" ADD CONSTRAINT "shifts_nozzleId_fkey" FOREIGN KEY ("nozzleId") REFERENCES "nozzles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "shifts" ADD CONSTRAINT "shifts_pompisteId_fkey" FOREIGN KEY ("pompisteId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "shifts" ADD CONSTRAINT "shifts_validatedByUserId_fkey" FOREIGN KEY ("validatedByUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- sales
+ALTER TABLE "sales" ADD CONSTRAINT "sales_shiftId_fkey" FOREIGN KEY ("shiftId") REFERENCES "shifts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "sales" ADD CONSTRAINT "sales_fuelTypeId_fkey" FOREIGN KEY ("fuelTypeId") REFERENCES "fuel_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "sales" ADD CONSTRAINT "sales_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "clients"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- sale_payments
+ALTER TABLE "sale_payments" ADD CONSTRAINT "sale_payments_saleId_fkey" FOREIGN KEY ("saleId") REFERENCES "sales"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "sale_payments" ADD CONSTRAINT "sale_payments_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "payment_methods"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- cash_registers
+ALTER TABLE "cash_registers" ADD CONSTRAINT "cash_registers_shiftId_fkey" FOREIGN KEY ("shiftId") REFERENCES "shifts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- payment_details
+ALTER TABLE "payment_details" ADD CONSTRAINT "payment_details_cashRegisterId_fkey" FOREIGN KEY ("cashRegisterId") REFERENCES "cash_registers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "payment_details" ADD CONSTRAINT "payment_details_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "payment_methods"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- deliveries
+ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_tankId_fkey" FOREIGN KEY ("tankId") REFERENCES "tanks"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "suppliers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_receivedByUserId_fkey" FOREIGN KEY ("receivedByUserId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- stock_movements
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_tankId_fkey" FOREIGN KEY ("tankId") REFERENCES "tanks"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- prices
+ALTER TABLE "prices" ADD CONSTRAINT "prices_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "prices" ADD CONSTRAINT "prices_fuelTypeId_fkey" FOREIGN KEY ("fuelTypeId") REFERENCES "fuel_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "prices" ADD CONSTRAINT "prices_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- clients
+ALTER TABLE "clients" ADD CONSTRAINT "clients_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- invoices
+ALTER TABLE "invoices" ADD CONSTRAINT "invoices_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "invoices" ADD CONSTRAINT "invoices_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "clients"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- invoice_lines
+ALTER TABLE "invoice_lines" ADD CONSTRAINT "invoice_lines_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "invoices"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "invoice_lines" ADD CONSTRAINT "invoice_lines_fuelTypeId_fkey" FOREIGN KEY ("fuelTypeId") REFERENCES "fuel_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- invoice_payments
+ALTER TABLE "invoice_payments" ADD CONSTRAINT "invoice_payments_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "invoice_payments" ADD CONSTRAINT "invoice_payments_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "payment_methods"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- credit_notes
+ALTER TABLE "credit_notes" ADD CONSTRAINT "credit_notes_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "credit_notes" ADD CONSTRAINT "credit_notes_originalInvoiceId_fkey" FOREIGN KEY ("originalInvoiceId") REFERENCES "invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- maintenance_logs
+ALTER TABLE "maintenance_logs" ADD CONSTRAINT "maintenance_logs_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "maintenance_logs" ADD CONSTRAINT "maintenance_logs_dispenserId_fkey" FOREIGN KEY ("dispenserId") REFERENCES "dispensers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "maintenance_logs" ADD CONSTRAINT "maintenance_logs_tankId_fkey" FOREIGN KEY ("tankId") REFERENCES "tanks"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "maintenance_logs" ADD CONSTRAINT "maintenance_logs_nozzleId_fkey" FOREIGN KEY ("nozzleId") REFERENCES "nozzles"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "maintenance_logs" ADD CONSTRAINT "maintenance_logs_performedByUserId_fkey" FOREIGN KEY ("performedByUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- alerts
+ALTER TABLE "alerts" ADD CONSTRAINT "alerts_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "alerts" ADD CONSTRAINT "alerts_acknowledgedByUserId_fkey" FOREIGN KEY ("acknowledgedByUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "alerts" ADD CONSTRAINT "alerts_resolvedByUserId_fkey" FOREIGN KEY ("resolvedByUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- licences
 ALTER TABLE "licences" ADD CONSTRAINT "licences_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- audit_logs
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- pompiste_debts
+ALTER TABLE "pompiste_debts" ADD CONSTRAINT "pompiste_debts_pompisteId_fkey" FOREIGN KEY ("pompisteId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "pompiste_debts" ADD CONSTRAINT "pompiste_debts_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "stations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "pompiste_debts" ADD CONSTRAINT "pompiste_debts_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- debt_payments
+ALTER TABLE "debt_payments" ADD CONSTRAINT "debt_payments_debtId_fkey" FOREIGN KEY ("debtId") REFERENCES "pompiste_debts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "debt_payments" ADD CONSTRAINT "debt_payments_receivedByUserId_fkey" FOREIGN KEY ("receivedByUserId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

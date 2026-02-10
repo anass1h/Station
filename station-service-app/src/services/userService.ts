@@ -112,6 +112,10 @@ export const userService = {
     }
   },
 
+  async unlockAccount(userId: string): Promise<void> {
+    await axiosInstance.post(`/auth/unlock-account/${userId}`);
+  },
+
   async updatePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
     await axiosInstance.post('/auth/change-password', data);
   },

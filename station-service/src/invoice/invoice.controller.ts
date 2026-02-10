@@ -27,6 +27,7 @@ import {
   CreateInvoiceDto,
   AddPaymentDto,
   CancelInvoiceDto,
+  CreateCreditNoteDto,
 } from './dto/index.js';
 
 @ApiTags('invoices')
@@ -102,6 +103,24 @@ export class InvoiceController {
     @StationScope() stationId: string | null,
   ) {
     return this.invoiceService.cancel(id, dto, stationId);
+  }
+
+  @Post(':id/credit-note')
+  @Roles(UserRole.GESTIONNAIRE, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Créer un avoir pour une facture' })
+  @ApiParam({ name: 'id', description: 'UUID de la facture' })
+  @ApiResponse({ status: 201, description: 'Avoir créé avec succès' })
+  @ApiResponse({
+    status: 400,
+    description: "Impossible de créer un avoir pour cette facture",
+  })
+  @ApiResponse({ status: 404, description: 'Facture non trouvée' })
+  async createCreditNote(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateCreditNoteDto,
+    @StationScope() stationId: string | null,
+  ) {
+    return this.invoiceService.createCreditNote(id, dto, stationId);
   }
 
   @Get('by-station/:stationId')

@@ -78,8 +78,10 @@ export const TAX_CONSTANTS = {
 export const INVOICE_CONSTANTS = {
   /** Préfixe du numéro de facture */
   NUMBER_PREFIX: 'FAC',
+  /** Préfixe du numéro d'avoir */
+  CREDIT_NOTE_PREFIX: 'AV',
   /** Longueur de la séquence (zéro-padded) */
-  SEQUENCE_LENGTH: 6,
+  SEQUENCE_LENGTH: 5,
   /** Délai de paiement par défaut (en jours) */
   DEFAULT_PAYMENT_TERMS_DAYS: 30,
 } as const;

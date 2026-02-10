@@ -106,6 +106,31 @@ export class SaleValidator {
     return { valid: true };
   }
 
+  /**
+   * Vérifie s'il y a une livraison récente (<30 min) sur le même tank
+   * pour éviter les ventes pendant une livraison en cours
+   */
+  async validateNoActiveDelivery(tankId: string): Promise<ValidationResult> {
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+
+    const recentDelivery = await this.prisma.delivery.findFirst({
+      where: {
+        tankId,
+        deliveredAt: { gte: thirtyMinutesAgo },
+      },
+      orderBy: { deliveredAt: 'desc' },
+    });
+
+    if (recentDelivery) {
+      return {
+        valid: false,
+        message: `Une livraison récente (${recentDelivery.deliveryNoteNumber}) a été enregistrée sur cette cuve il y a moins de 30 minutes. Veuillez patienter.`,
+      };
+    }
+
+    return { valid: true };
+  }
+
   async validatePaymentReference(
     paymentMethodId: string,
     reference?: string,

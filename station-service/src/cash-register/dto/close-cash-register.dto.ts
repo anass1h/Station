@@ -39,9 +39,9 @@ export class CloseCashRegisterDto {
     description:
       "Créer automatiquement une dette si variance négative (manque d'argent)",
     example: true,
-    default: false,
+    default: true,
   })
   @IsOptional()
   @IsBoolean()
-  createDebtOnNegativeVariance?: boolean;
+  createDebtOnNegativeVariance?: boolean = true;
 }

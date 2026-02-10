@@ -9,6 +9,7 @@ import { Delivery, MovementType } from '@prisma/client';
 import { PrismaService } from '../prisma/index.js';
 import { StockValidator } from '../common/validators/index.js';
 import { StockCalculator } from '../common/calculators/index.js';
+import { AlertTriggerService } from '../alert/alert-trigger.service.js';
 import { CreateDeliveryDto } from './dto/index.js';
 import { PaginationDto } from '../common/dto/pagination.dto.js';
 import {
@@ -26,6 +27,7 @@ export class DeliveryService {
     private readonly prisma: PrismaService,
     private readonly stockValidator: StockValidator,
     private readonly stockCalculator: StockCalculator,
+    private readonly alertTriggerService: AlertTriggerService,
   ) {}
 
   async create(dto: CreateDeliveryDto, userId: string): Promise<Delivery> {
@@ -91,6 +93,11 @@ export class DeliveryService {
       // On log l'avertissement mais on ne bloque pas
     }
 
+    // Calculer la variance de livraison si orderedQuantity fourni
+    const deliveryVariance = dto.orderedQuantity != null
+      ? dto.quantity - dto.orderedQuantity
+      : undefined;
+
     // Créer la livraison et mettre à jour le stock en transaction
     const [delivery] = await this.prisma.$transaction([
       // Créer la livraison
@@ -105,6 +112,8 @@ export class DeliveryService {
           levelBefore: dto.levelBefore,
           levelAfter: dto.levelAfter,
           temperature: dto.temperature,
+          orderedQuantity: dto.orderedQuantity,
+          deliveryVariance,
           deliveredAt: new Date(dto.deliveredAt),
         },
         include: {
@@ -147,6 +156,14 @@ export class DeliveryService {
     this.logger.log(
       `Livraison ${dto.deliveryNoteNumber} enregistrée: ${dto.quantity}L de ${tank!.fuelType.name} dans ${tank!.reference}`,
     );
+
+    // Vérifier le stock après livraison (auto-résoudre les alertes LOW_STOCK si niveau remonté)
+    const updatedTank = await this.prisma.tank.findUnique({
+      where: { id: dto.tankId },
+    });
+    if (updatedTank) {
+      await this.alertTriggerService.checkLowStock(updatedTank);
+    }
 
     return delivery;
   }

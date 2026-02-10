@@ -50,7 +50,7 @@ import {
 } from '@/pages/operations';
 import { DebtsPage, DebtDetailPage, NewDebtPage } from '@/pages/debts';
 import { AlertsPage, AlertDetailPage } from '@/pages/alerts';
-import { AdminClientsPage } from '@/pages/admin';
+import { AdminClientsPage, AdminStationsPage, AdminUsersPage, AdminAuditLogsPage } from '@/pages/admin';
 import { useAuthStore } from '@/stores/authStore';
 
 // Protected Route wrapper with role check
@@ -254,6 +254,9 @@ function App() {
 
           {/* Admin only — Super Admin */}
           <Route path="/admin/clients" element={<AdminClientsPage />} />
+          <Route path="/admin/stations" element={<AdminStationsPage />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/admin/audit-logs" element={<AdminAuditLogsPage />} />
         </Route>
 
         {/* Default redirect */}

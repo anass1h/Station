@@ -90,22 +90,24 @@ export class InvoicePdfService {
       doc.text(`Email: ${station.email}`, 150, 106);
     }
 
-    // Identifiants fiscaux (à droite)
+    // Identifiants fiscaux (à droite) — obligatoires pour DGI
     let fiscalY = 50;
     doc.fontSize(8).font('Helvetica');
 
     if (station.ice) {
-      doc.text(`ICE: ${station.ice}`, 400, fiscalY, {
+      doc.font('Helvetica-Bold').text(`ICE: ${station.ice}`, 400, fiscalY, {
         width: 150,
         align: 'right',
       });
+      doc.font('Helvetica');
       fiscalY += 12;
     }
     if (station.taxId) {
-      doc.text(`IF: ${station.taxId}`, 400, fiscalY, {
+      doc.font('Helvetica-Bold').text(`IF: ${station.taxId}`, 400, fiscalY, {
         width: 150,
         align: 'right',
       });
+      doc.font('Helvetica');
       fiscalY += 12;
     }
     if (station.rc) {
@@ -188,10 +190,11 @@ export class InvoicePdfService {
       y += 10;
     }
 
-    // Identifiants fiscaux client (colonne droite du cadre)
+    // Identifiants fiscaux client — obligatoires pour B2B (DGI)
     let fiscalY = boxTop + 25;
     if (client.ice) {
-      doc.text(`ICE: ${client.ice}`, 180, fiscalY);
+      doc.font('Helvetica-Bold').text(`ICE: ${client.ice}`, 180, fiscalY);
+      doc.font('Helvetica');
       fiscalY += 10;
     }
     if (client.taxId) {
@@ -327,19 +330,20 @@ export class InvoicePdfService {
         align: 'right',
       });
 
-    // Montant en lettres (optionnel)
+    // Montant en lettres (conversion TTC → mots français)
+    const amountInWords = this.convertAmountToWords(Number(invoice.amountTTC));
     doc
-      .font('Helvetica')
+      .font('Helvetica-Bold')
       .fontSize(9)
       .text(
-        `Arrêté la présente facture à la somme de ${amountTTC} MAD`,
+        `Arrêté la présente facture à la somme de : ${amountInWords}`,
         50,
         totalsTop + 100,
         { width: 500 },
       );
   }
 
-  private generateFooter(doc: PDFKit.PDFDocument, _invoice: any): void {
+  private generateFooter(doc: PDFKit.PDFDocument, invoice: any): void {
     const pageHeight = doc.page.height;
     const footerTop = pageHeight - 100;
 
@@ -362,12 +366,22 @@ export class InvoicePdfService {
         align: 'center',
       });
 
+    // Mention DGI obligatoire pour B2B
+    if (invoice.station?.ice) {
+      doc.text(
+        `ICE Station: ${invoice.station.ice}`,
+        50,
+        footerTop + 34,
+        { width: 500, align: 'center' },
+      );
+    }
+
     // Message de remerciement
     doc
       .fontSize(10)
       .fillColor('#000000')
       .font('Helvetica-Oblique')
-      .text('Merci pour votre confiance !', 50, footerTop + 45, {
+      .text('Merci pour votre confiance !', 50, footerTop + 50, {
         width: 500,
         align: 'center',
       });
@@ -383,6 +397,97 @@ export class InvoicePdfService {
         footerTop + 70,
         { width: 500, align: 'center' },
       );
+  }
+
+  /**
+   * Convertit un montant en dirhams en mots français
+   */
+  private convertAmountToWords(amount: number): string {
+    const units = [
+      '', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept',
+      'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze',
+      'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf',
+    ];
+    const tens = [
+      '', '', 'vingt', 'trente', 'quarante', 'cinquante',
+      'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt',
+    ];
+
+    const convertHundreds = (n: number): string => {
+      if (n === 0) return '';
+      if (n < 20) return units[n];
+      if (n < 100) {
+        const ten = Math.floor(n / 10);
+        const unit = n % 10;
+        if (ten === 7 || ten === 9) {
+          // 70-79: soixante-dix..., 90-99: quatre-vingt-dix...
+          const base = tens[ten];
+          const remainder = n - ten * 10 + 10;
+          if (remainder === 10) return `${base}-dix`;
+          return `${base}-${units[remainder]}`;
+        }
+        if (unit === 0) {
+          if (ten === 8) return 'quatre-vingts';
+          return tens[ten];
+        }
+        if (unit === 1 && ten !== 8) return `${tens[ten]} et un`;
+        return `${tens[ten]}-${units[unit]}`;
+      }
+      const hundred = Math.floor(n / 100);
+      const remainder = n % 100;
+      let result = hundred === 1 ? 'cent' : `${units[hundred]} cent`;
+      if (remainder === 0 && hundred > 1) result += 's';
+      if (remainder > 0) result += ` ${convertHundreds(remainder)}`;
+      return result;
+    };
+
+    const convertNumber = (n: number): string => {
+      if (n === 0) return 'zéro';
+      if (n < 1000) return convertHundreds(n);
+
+      const thousands = Math.floor(n / 1000);
+      const remainder = n % 1000;
+
+      let result = '';
+      if (thousands === 1) {
+        result = 'mille';
+      } else if (thousands < 1000) {
+        result = `${convertHundreds(thousands)} mille`;
+      } else {
+        const millions = Math.floor(thousands / 1000);
+        const thousandsRemainder = thousands % 1000;
+        if (millions === 1) {
+          result = 'un million';
+        } else {
+          result = `${convertHundreds(millions)} millions`;
+        }
+        if (thousandsRemainder > 0) {
+          if (thousandsRemainder === 1) {
+            result += ' mille';
+          } else {
+            result += ` ${convertHundreds(thousandsRemainder)} mille`;
+          }
+        }
+      }
+
+      if (remainder > 0) {
+        result += ` ${convertHundreds(remainder)}`;
+      }
+
+      return result;
+    };
+
+    const integerPart = Math.floor(amount);
+    const decimalPart = Math.round((amount - integerPart) * 100);
+
+    let result = `${convertNumber(integerPart)} dirham${integerPart > 1 ? 's' : ''}`;
+
+    if (decimalPart > 0) {
+      result += ` et ${convertNumber(decimalPart)} centime${decimalPart > 1 ? 's' : ''}`;
+    }
+
+    // Capitalize first letter
+    return result.charAt(0).toUpperCase() + result.slice(1);
   }
 
   private formatDate(date: Date | string): string {

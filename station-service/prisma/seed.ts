@@ -1171,43 +1171,656 @@ async function main() {
   });
   console.log(`   ✅ Stock movements created\n`);
 
+  // ============================================================
+  // STATION 2 : Station Rabat Agdal
+  // ============================================================
+  console.log('\n' + '='.repeat(60));
+  console.log('🏪 Creating Station 2 - Rabat Agdal...\n');
+
+  const station2 = await prisma.station.create({
+    data: {
+      name: 'Station Rabat Agdal',
+      address: '78 Avenue de France',
+      city: 'Rabat',
+      phone: '+212537456789',
+      email: 'station.rabat@test.com',
+      ice: '005678901000093',
+      taxId: '56789012',
+      rc: '567890',
+      patente: 'PAT456',
+      stationCode: 'RAB01',
+      isActive: true,
+    },
+  });
+  console.log(`   ✅ Station 2 created: ${station2.name}\n`);
+
+  // Licence BETA for station 2
+  console.log('📜 Creating BETA licence for station 2...');
+  await prisma.licence.create({
+    data: {
+      stationId: station2.id,
+      plan: LicencePlan.BETA,
+      status: LicenceStatus.ACTIVE,
+      startDate,
+      endDate,
+      maxUsers: 99,
+      maxDispensers: 99,
+      maxTanks: 99,
+      maxStations: 10,
+      gracePeriodDays: 30,
+      features: {
+        shifts: true,
+        fuelSales: true,
+        cashPayments: true,
+        cardPayments: true,
+        fuelVouchers: true,
+        dashboardBasic: true,
+        dashboardAdvanced: true,
+        dashboardGlobal: true,
+        invoicingB2C: true,
+        invoicingB2B: true,
+        creditNotes: true,
+        creditClients: true,
+        reportsBasic: true,
+        reportsPdf: true,
+        reportsExcel: true,
+        reportsBi: true,
+        lowStockAlerts: true,
+        maintenancePreventive: true,
+        multiStation: true,
+        apiAccess: true,
+        webhooks: true,
+        offlineMode: true,
+        dgiCompliance: true,
+      },
+    },
+  });
+  console.log(`   ✅ BETA Licence created for station 2\n`);
+
+  // Users for station 2
+  console.log('👤 Creating users for station 2...');
+  const gestionnaire2 = await prisma.user.create({
+    data: {
+      stationId: station2.id,
+      email: 'gestionnaire2@station.com',
+      passwordHash: await hashPassword('Gest456!'),
+      badgeCode: 'G002',
+      pinCodeHash: await hashPinCode('333333'),
+      firstName: 'Rachida',
+      lastName: 'Benkirane',
+      phone: '+212600100001',
+      role: UserRole.GESTIONNAIRE,
+      isActive: true,
+    },
+  });
+
+  const pompiste4 = await prisma.user.create({
+    data: {
+      stationId: station2.id,
+      badgeCode: 'P004',
+      pinCodeHash: await hashPinCode('444444'),
+      firstName: 'Hamid',
+      lastName: 'Ouazzani',
+      phone: '+212600100002',
+      role: UserRole.POMPISTE,
+      isActive: true,
+    },
+  });
+
+  const pompiste5 = await prisma.user.create({
+    data: {
+      stationId: station2.id,
+      badgeCode: 'P005',
+      pinCodeHash: await hashPinCode('555555'),
+      firstName: 'Samir',
+      lastName: 'Kettani',
+      phone: '+212600100003',
+      role: UserRole.POMPISTE,
+      isActive: true,
+    },
+  });
+  console.log(`   ✅ 3 users created for station 2\n`);
+
+  // Tanks for station 2
+  console.log('🛢️ Creating tanks for station 2...');
+  const s2Tank1 = await prisma.tank.create({
+    data: {
+      stationId: station2.id,
+      fuelTypeId: gasoil.id,
+      capacity: 15000,
+      currentLevel: 11000,
+      lowThreshold: 3000,
+      reference: 'CUVE-R01',
+      isActive: true,
+    },
+  });
+
+  const s2Tank2 = await prisma.tank.create({
+    data: {
+      stationId: station2.id,
+      fuelTypeId: sp95.id,
+      capacity: 12000,
+      currentLevel: 2000, // Low stock!
+      lowThreshold: 3000,
+      reference: 'CUVE-R02',
+      isActive: true,
+    },
+  });
+  console.log(`   ✅ 2 tanks created for station 2\n`);
+
+  // Dispensers for station 2
+  console.log('⛽ Creating dispensers for station 2...');
+  const s2Dispenser1 = await prisma.dispenser.create({
+    data: { stationId: station2.id, reference: 'DC-R01', isActive: true },
+  });
+
+  const s2Dispenser2 = await prisma.dispenser.create({
+    data: { stationId: station2.id, reference: 'DC-R02', isActive: true },
+  });
+  console.log(`   ✅ 2 dispensers created for station 2\n`);
+
+  // Nozzles for station 2
+  console.log('🔫 Creating nozzles for station 2...');
+  const s2Nozzle1 = await prisma.nozzle.create({
+    data: {
+      dispenserId: s2Dispenser1.id,
+      tankId: s2Tank1.id,
+      fuelTypeId: gasoil.id,
+      reference: 'DCR01-P1',
+      currentIndex: 45000.00,
+      position: 1,
+      isActive: true,
+    },
+  });
+
+  const s2Nozzle2 = await prisma.nozzle.create({
+    data: {
+      dispenserId: s2Dispenser1.id,
+      tankId: s2Tank2.id,
+      fuelTypeId: sp95.id,
+      reference: 'DCR01-P2',
+      currentIndex: 32000.50,
+      position: 2,
+      isActive: true,
+    },
+  });
+
+  const s2Nozzle3 = await prisma.nozzle.create({
+    data: {
+      dispenserId: s2Dispenser2.id,
+      tankId: s2Tank1.id,
+      fuelTypeId: gasoil.id,
+      reference: 'DCR02-P1',
+      currentIndex: 28500.75,
+      position: 1,
+      isActive: true,
+    },
+  });
+  console.log(`   ✅ 3 nozzles created for station 2\n`);
+
+  // Prices for station 2
+  console.log('💰 Creating prices for station 2...');
+  await Promise.all([
+    prisma.price.create({
+      data: {
+        stationId: station2.id,
+        fuelTypeId: gasoil.id,
+        sellingPrice: 12.80,
+        sellingPriceHT: 10.67,
+        purchasePrice: 9.90,
+        effectiveFrom: now,
+        createdByUserId: gestionnaire2.id,
+      },
+    }),
+    prisma.price.create({
+      data: {
+        stationId: station2.id,
+        fuelTypeId: sp95.id,
+        sellingPrice: 14.50,
+        sellingPriceHT: 12.08,
+        purchasePrice: 11.20,
+        effectiveFrom: now,
+        createdByUserId: gestionnaire2.id,
+      },
+    }),
+  ]);
+  console.log(`   ✅ 2 prices created for station 2\n`);
+
+  // Clients for station 2
+  console.log('👥 Creating clients for station 2...');
+  const s2Client1 = await prisma.client.create({
+    data: {
+      stationId: station2.id,
+      clientType: ClientType.B2B,
+      companyName: 'Société Marocaine de Transport',
+      contactName: 'Amine Tahiri',
+      ice: '006789012000094',
+      taxId: '67890123',
+      rc: '678901',
+      address: '22 Av Hassan II, Rabat',
+      phone: '+212537222333',
+      email: 'contact@smt.ma',
+      creditLimit: 40000,
+      currentBalance: 15000,
+      paymentTermDays: 30,
+      isActive: true,
+    },
+  });
+
+  const s2Client2 = await prisma.client.create({
+    data: {
+      stationId: station2.id,
+      clientType: ClientType.B2B,
+      companyName: 'Rabat Express Livraison',
+      contactName: 'Samira Hajji',
+      ice: '007890123000095',
+      address: '5 Rue Souissi, Rabat',
+      phone: '+212537444555',
+      email: 'compta@rabat-express.ma',
+      creditLimit: 25000,
+      currentBalance: 22000,
+      paymentTermDays: 30,
+      isActive: true,
+    },
+  });
+
+  await prisma.client.create({
+    data: {
+      stationId: station2.id,
+      clientType: ClientType.B2C_REGISTERED,
+      contactName: 'Leila Amrani',
+      phone: '+212661888999',
+      creditLimit: 3000,
+      currentBalance: 500,
+      isActive: true,
+    },
+  });
+  console.log(`   ✅ 3 clients created for station 2\n`);
+
+  // Deliveries for station 2 (reuse supplier1 = AFRIQUIA)
+  console.log('🚛 Creating deliveries for station 2...');
+  const s2FiveDaysAgo = new Date();
+  s2FiveDaysAgo.setDate(s2FiveDaysAgo.getDate() - 5);
+
+  await prisma.delivery.create({
+    data: {
+      tankId: s2Tank1.id,
+      supplierId: supplier1.id,
+      receivedByUserId: gestionnaire2.id,
+      deliveryNoteNumber: 'BL-RAB-001',
+      quantity: 7000,
+      purchasePrice: 9.90,
+      levelBefore: 4000,
+      levelAfter: 11000,
+      temperature: 20.1,
+      deliveredAt: s2FiveDaysAgo,
+    },
+  });
+
+  await prisma.delivery.create({
+    data: {
+      tankId: s2Tank2.id,
+      supplierId: supplier1.id,
+      receivedByUserId: gestionnaire2.id,
+      deliveryNoteNumber: 'BL-RAB-002',
+      quantity: 5000,
+      purchasePrice: 11.20,
+      levelBefore: 2000,
+      levelAfter: 7000,
+      temperature: 19.5,
+      deliveredAt: new Date(s2FiveDaysAgo.getTime() + 2 * 86400000),
+    },
+  });
+  console.log(`   ✅ 2 deliveries created for station 2\n`);
+
+  // Shifts for station 2
+  console.log('📋 Creating shifts for station 2...');
+
+  // Shift S2-1: VALIDATED (5 days ago)
+  const s2Shift1Start = new Date();
+  s2Shift1Start.setDate(s2Shift1Start.getDate() - 5);
+  s2Shift1Start.setHours(6, 0, 0, 0);
+  const s2Shift1End = new Date(s2Shift1Start);
+  s2Shift1End.setHours(14, 0, 0, 0);
+
+  const s2Shift1 = await prisma.shift.create({
+    data: {
+      nozzleId: s2Nozzle1.id,
+      pompisteId: pompiste4.id,
+      indexStart: 44700.00,
+      indexEnd: 44900.00,
+      startedAt: s2Shift1Start,
+      endedAt: s2Shift1End,
+      status: ShiftStatus.VALIDATED,
+    },
+  });
+
+  // Sales for s2Shift1
+  for (let i = 0; i < 5; i++) {
+    const quantity = randomDecimal(20, 55);
+    const unitPrice = 12.80;
+    const totalAmount = parseFloat((quantity * unitPrice).toFixed(2));
+    const saleTime = randomDate(s2Shift1Start, s2Shift1End);
+
+    const sale = await prisma.sale.create({
+      data: {
+        shiftId: s2Shift1.id,
+        fuelTypeId: gasoil.id,
+        clientId: i === 0 ? s2Client1.id : null,
+        quantity,
+        unitPrice,
+        totalAmount,
+        soldAt: saleTime,
+      },
+    });
+
+    await prisma.salePayment.create({
+      data: {
+        saleId: sale.id,
+        paymentMethodId: i % 2 === 0 ? cashMethod.id : cardMethod.id,
+        amount: totalAmount,
+        reference: i % 2 !== 0 ? `CB-R${Date.now()}${i}` : null,
+      },
+    });
+  }
+
+  // Shift S2-2: CLOSED (yesterday)
+  const s2Shift2Start = new Date(yesterday);
+  s2Shift2Start.setHours(6, 0, 0, 0);
+  const s2Shift2End = new Date(yesterday);
+  s2Shift2End.setHours(14, 0, 0, 0);
+
+  const s2Shift2 = await prisma.shift.create({
+    data: {
+      nozzleId: s2Nozzle2.id,
+      pompisteId: pompiste5.id,
+      indexStart: 31800.00,
+      indexEnd: 32000.50,
+      startedAt: s2Shift2Start,
+      endedAt: s2Shift2End,
+      status: ShiftStatus.CLOSED,
+    },
+  });
+
+  // Sales for s2Shift2
+  for (let i = 0; i < 4; i++) {
+    const quantity = randomDecimal(15, 40);
+    const unitPrice = 14.50;
+    const totalAmount = parseFloat((quantity * unitPrice).toFixed(2));
+    const saleTime = randomDate(s2Shift2Start, s2Shift2End);
+
+    const sale = await prisma.sale.create({
+      data: {
+        shiftId: s2Shift2.id,
+        fuelTypeId: sp95.id,
+        clientId: i === 1 ? s2Client2.id : null,
+        quantity,
+        unitPrice,
+        totalAmount,
+        soldAt: saleTime,
+      },
+    });
+
+    await prisma.salePayment.create({
+      data: {
+        saleId: sale.id,
+        paymentMethodId: cashMethod.id,
+        amount: totalAmount,
+      },
+    });
+  }
+
+  // Cash register for s2Shift2 (closed shift)
+  await prisma.cashRegister.create({
+    data: {
+      shiftId: s2Shift2.id,
+      expectedTotal: 1800.00,
+      actualTotal: 1790.00,
+      variance: -10.00,
+      varianceNote: 'Petit écart de monnaie',
+      closedAt: s2Shift2End,
+    },
+  });
+
+  // Shift S2-3: OPEN (today)
+  const s2Shift3Start = new Date();
+  s2Shift3Start.setHours(6, 0, 0, 0);
+
+  const s2Shift3 = await prisma.shift.create({
+    data: {
+      nozzleId: s2Nozzle3.id,
+      pompisteId: pompiste4.id,
+      indexStart: 28400.00,
+      startedAt: s2Shift3Start,
+      status: ShiftStatus.OPEN,
+    },
+  });
+
+  // A couple sales for the open shift
+  for (let i = 0; i < 2; i++) {
+    const quantity = randomDecimal(20, 40);
+    const unitPrice = 12.80;
+    const totalAmount = parseFloat((quantity * unitPrice).toFixed(2));
+    const saleTime = new Date();
+    saleTime.setHours(saleTime.getHours() - (2 - i));
+
+    const sale = await prisma.sale.create({
+      data: {
+        shiftId: s2Shift3.id,
+        fuelTypeId: gasoil.id,
+        quantity,
+        unitPrice,
+        totalAmount,
+        soldAt: saleTime,
+      },
+    });
+
+    await prisma.salePayment.create({
+      data: { saleId: sale.id, paymentMethodId: cashMethod.id, amount: totalAmount },
+    });
+  }
+  console.log(`   ✅ 3 shifts with sales created for station 2\n`);
+
+  // Invoices for station 2
+  console.log('📄 Creating invoices for station 2...');
+
+  // Invoice S2-1: ISSUED
+  const s2Invoice1 = await prisma.invoice.create({
+    data: {
+      stationId: station2.id,
+      clientId: s2Client1.id,
+      invoiceNumber: 'RAB01-2024-00001',
+      invoiceType: InvoiceType.B2B,
+      status: InvoiceStatus.ISSUED,
+      amountHT: 5000.00,
+      vatRate: 20.00,
+      vatAmount: 1000.00,
+      amountTTC: 6000.00,
+      paidAmount: 0,
+      issuedAt: new Date(),
+      dueDate: new Date(Date.now() + 30 * 86400000),
+    },
+  });
+
+  await prisma.invoiceLine.create({
+    data: {
+      invoiceId: s2Invoice1.id,
+      fuelTypeId: gasoil.id,
+      description: 'Gasoil 50ppm',
+      quantity: 468,
+      unitPriceHT: 10.67,
+      totalHT: 5000.00,
+      vatRate: 20.00,
+      vatAmount: 1000.00,
+      totalTTC: 6000.00,
+    },
+  });
+
+  // Invoice S2-2: DRAFT
+  const s2Invoice2 = await prisma.invoice.create({
+    data: {
+      stationId: station2.id,
+      clientId: s2Client2.id,
+      invoiceNumber: 'RAB01-2024-00002',
+      invoiceType: InvoiceType.B2B,
+      status: InvoiceStatus.DRAFT,
+      amountHT: 3500.00,
+      vatRate: 20.00,
+      vatAmount: 700.00,
+      amountTTC: 4200.00,
+      paidAmount: 0,
+    },
+  });
+
+  await prisma.invoiceLine.create({
+    data: {
+      invoiceId: s2Invoice2.id,
+      fuelTypeId: sp95.id,
+      description: 'Sans Plomb 95',
+      quantity: 290,
+      unitPriceHT: 12.08,
+      totalHT: 3500.00,
+      vatRate: 20.00,
+      vatAmount: 700.00,
+      totalTTC: 4200.00,
+    },
+  });
+  console.log(`   ✅ 2 invoices created for station 2\n`);
+
+  // Pompiste debt for station 2
+  console.log('💸 Creating pompiste debt for station 2...');
+  await prisma.pompisteDebt.create({
+    data: {
+      pompisteId: pompiste5.id,
+      stationId: station2.id,
+      amount: 250.00,
+      remainingAmount: 250.00,
+      reason: DebtReason.CASH_VARIANCE,
+      status: DebtStatus.PENDING,
+      description: 'Écart de caisse du shift du 08/02 - en attente de justification',
+      createdByUserId: gestionnaire2.id,
+    },
+  });
+  console.log(`   ✅ 1 debt created for station 2\n`);
+
+  // Alerts for station 2
+  console.log('🚨 Creating alerts for station 2...');
+  await prisma.alert.create({
+    data: {
+      stationId: station2.id,
+      alertType: AlertType.LOW_STOCK,
+      priority: AlertPriority.HIGH,
+      status: AlertStatus.ACTIVE,
+      title: 'Stock bas - Sans Plomb 95',
+      message: 'Le niveau de la cuve CUVE-R02 (SP95) est descendu sous le seuil d\'alerte. Niveau actuel: 2000L, Seuil: 3000L',
+      relatedEntityId: s2Tank2.id,
+      relatedEntityType: 'Tank',
+      triggeredAt: new Date(Date.now() - 3600000),
+    },
+  });
+
+  await prisma.alert.create({
+    data: {
+      stationId: station2.id,
+      alertType: AlertType.SHIFT_OPEN_TOO_LONG,
+      priority: AlertPriority.MEDIUM,
+      status: AlertStatus.ACTIVE,
+      title: 'Shift ouvert depuis plus de 8h',
+      message: `Le shift du pompiste Hamid Ouazzani est ouvert depuis plus de 8 heures.`,
+      relatedEntityId: s2Shift3.id,
+      relatedEntityType: 'Shift',
+      triggeredAt: new Date(Date.now() - 1800000),
+    },
+  });
+
+  await prisma.alert.create({
+    data: {
+      stationId: station2.id,
+      alertType: AlertType.CREDIT_LIMIT,
+      priority: AlertPriority.HIGH,
+      status: AlertStatus.ACTIVE,
+      title: 'Limite crédit proche - Rabat Express Livraison',
+      message: 'Le client Rabat Express Livraison a atteint 88% de sa limite de crédit (22000/25000 MAD).',
+      relatedEntityId: s2Client2.id,
+      relatedEntityType: 'Client',
+      triggeredAt: new Date(Date.now() - 43200000),
+    },
+  });
+  console.log(`   ✅ 3 alerts created for station 2\n`);
+
+  // Stock movements for station 2
+  console.log('📦 Creating stock movements for station 2...');
+  await prisma.stockMovement.create({
+    data: {
+      tankId: s2Tank1.id,
+      userId: gestionnaire2.id,
+      movementType: MovementType.DELIVERY,
+      quantity: 7000,
+      balanceAfter: 11000,
+      referenceType: 'DELIVERY',
+      reason: 'Livraison BL-RAB-001',
+    },
+  });
+
+  await prisma.stockMovement.create({
+    data: {
+      tankId: s2Tank2.id,
+      userId: gestionnaire2.id,
+      movementType: MovementType.DELIVERY,
+      quantity: 5000,
+      balanceAfter: 7000,
+      referenceType: 'DELIVERY',
+      reason: 'Livraison BL-RAB-002',
+    },
+  });
+  console.log(`   ✅ 2 stock movements created for station 2\n`);
+
   // Summary
   console.log('=' .repeat(60));
   console.log('\n📋 RÉSUMÉ DES DONNÉES DE TEST:\n');
   console.log('┌─────────────────────────────────────────────────────────────┐');
-  console.log('│ COMPTES DE TEST                                             │');
+  console.log('│ PLATEFORME (propriétaire SaaS, aucune station)              │');
   console.log('├─────────────────┬────────────────────────────┬──────┬───────┤');
   console.log('│ Rôle            │ Email                      │ Badge│ PIN   │');
   console.log('├─────────────────┼────────────────────────────┼──────┼───────┤');
   console.log('│ SUPER_ADMIN     │ admin@station.com          │ -    │ -     │');
+  console.log('├─────────────────┴────────────────────────────┴──────┴───────┤');
+  console.log('│ STATION 1 - Casablanca                                     │');
+  console.log('├─────────────────┬────────────────────────────┬──────┬───────┤');
   console.log('│ GESTIONNAIRE    │ gestionnaire@station.com   │ G001 │ 123456│');
   console.log('│ POMPISTE        │ -                          │ P001 │ 654321│');
   console.log('│ POMPISTE        │ -                          │ P002 │ 111111│');
   console.log('│ POMPISTE        │ -                          │ P003 │ 222222│');
+  console.log('├─────────────────┴────────────────────────────┴──────┴───────┤');
+  console.log('│ STATION 2 - Rabat Agdal                                    │');
+  console.log('├─────────────────┬────────────────────────────┬──────┬───────┤');
+  console.log('│ GESTIONNAIRE    │ gestionnaire2@station.com  │ G002 │ 333333│');
+  console.log('│ POMPISTE        │ -                          │ P004 │ 444444│');
+  console.log('│ POMPISTE        │ -                          │ P005 │ 555555│');
   console.log('└─────────────────┴────────────────────────────┴──────┴───────┘');
-  console.log('\nMots de passe: SUPER_ADMIN=Admin123!, GESTIONNAIRE=Gest123!');
+  console.log('\nMots de passe: SUPER_ADMIN=Admin123!, GEST1=Gest123!, GEST2=Gest456!');
   console.log('\n┌─────────────────────────────────────────────────────────────┐');
   console.log('│ DONNÉES CRÉÉES                                              │');
-  console.log('├─────────────────────────────────────────┬───────────────────┤');
-  console.log('│ Entité                                  │ Quantité          │');
-  console.log('├─────────────────────────────────────────┼───────────────────┤');
-  console.log('│ Station                                 │ 1                 │');
-  console.log('│ Utilisateurs                            │ 5                 │');
-  console.log('│ Types de carburant                      │ 4                 │');
-  console.log('│ Cuves                                   │ 4 (2 stock bas)   │');
-  console.log('│ Distributeurs                           │ 3                 │');
-  console.log('│ Pistolets                               │ 5                 │');
-  console.log('│ Prix                                    │ 4                 │');
-  console.log('│ Fournisseurs                            │ 2                 │');
-  console.log('│ Clients                                 │ 5                 │');
-  console.log('│ Shifts (OPEN/CLOSED/VALIDATED)          │ 1/1/5             │');
-  console.log('│ Ventes                                  │ ~35               │');
-  console.log('│ Livraisons                              │ 3                 │');
-  console.log('│ Factures (différents statuts)           │ 5                 │');
-  console.log('│ Dettes pompistes                        │ 4                 │');
-  console.log('│ Alertes (différentes priorités)         │ 7                 │');
-  console.log('│ Moyens de paiement                      │ 5                 │');
-  console.log('└─────────────────────────────────────────┴───────────────────┘');
+  console.log('├─────────────────────────────────────┬──────────┬────────────┤');
+  console.log('│ Entité                              │ Station 1│ Station 2  │');
+  console.log('├─────────────────────────────────────┼──────────┼────────────┤');
+  console.log('│ Utilisateurs (hors SUPER_ADMIN)     │ 4        │ 3          │');
+  console.log('│ Cuves                               │ 4        │ 2          │');
+  console.log('│ Distributeurs                       │ 3        │ 2          │');
+  console.log('│ Pistolets                           │ 5        │ 3          │');
+  console.log('│ Prix                                │ 4        │ 2          │');
+  console.log('│ Clients                             │ 5        │ 3          │');
+  console.log('│ Shifts (OPEN/CLOSED/VALIDATED)      │ 1/1/5    │ 1/1/1      │');
+  console.log('│ Ventes                              │ ~35      │ ~11        │');
+  console.log('│ Livraisons                          │ 3        │ 2          │');
+  console.log('│ Factures                            │ 5        │ 2          │');
+  console.log('│ Dettes pompistes                    │ 4        │ 1          │');
+  console.log('│ Alertes                             │ 7        │ 3          │');
+  console.log('│ Stock movements                     │ 2        │ 2          │');
+  console.log('├─────────────────────────────────────┴──────────┴────────────┤');
+  console.log('│ Partagés: 4 fuel types, 5 payment methods, 2 fournisseurs  │');
+  console.log('│ Plateforme: 1 SUPER_ADMIN (propriétaire SaaS)              │');
+  console.log('└─────────────────────────────────────────────────────────────┘');
   console.log('\n✅ Seed completed successfully!\n');
 }
 

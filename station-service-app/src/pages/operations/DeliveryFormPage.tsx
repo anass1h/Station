@@ -23,6 +23,7 @@ const deliverySchema = z.object({
   levelBefore: z.number().min(0, 'Le niveau doit etre positif'),
   levelAfter: z.number().min(0, 'Le niveau doit etre positif'),
   temperature: z.number().optional(),
+  orderedQuantity: z.number().positive('La quantite commandee doit etre positive').optional(),
   deliveryDate: z.string().min(1, 'La date est requise'),
 });
 
@@ -227,7 +228,7 @@ export function DeliveryFormPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField
             label="Quantite livree (L)"
             type="number"
@@ -243,6 +244,14 @@ export function DeliveryFormPage() {
             {...register('purchasePrice', { valueAsNumber: true })}
             error={errors.purchasePrice?.message}
             required
+          />
+          <FormField
+            label="Quantite commandee (L)"
+            type="number"
+            step="0.01"
+            {...register('orderedQuantity', { valueAsNumber: true })}
+            error={errors.orderedQuantity?.message}
+            hint="Optionnel - pour calcul ecart"
           />
         </div>
 

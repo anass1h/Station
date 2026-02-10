@@ -102,7 +102,7 @@ enum LicenceStatus {
 // ===========================================
 model User {
   id           String    @id @default(uuid())
-  stationId    String?
+  stationId    String?   // NULL pour SUPER_ADMIN (propriétaire SaaS, non rattaché à une station)
   email        String?   @unique // Obligatoire pour GESTIONNAIRE/SUPER_ADMIN
   passwordHash String? // Obligatoire pour GESTIONNAIRE/SUPER_ADMIN
   badgeCode    String?   @unique // Obligatoire pour POMPISTE, ex: "P001"
@@ -123,6 +123,7 @@ model User {
 
   station            Station?         @relation(fields: [stationId], references: [id], onDelete: Cascade)
   shifts             Shift[]
+  shiftsValidated    Shift[]          @relation("ShiftsValidated")
   deliveries         Delivery[]
   stockMovements     StockMovement[]
   pricesCreated      Price[]
@@ -173,9 +174,10 @@ model Station {
   taxId     String?  @unique // Identifiant Fiscal (IF) — unique
   rc        String?  // Registre du Commerce — unique par ville (voir @@unique)
   patente   String?  // Numéro de patente
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  stationCode String?  @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   users           User[]
   tanks           Tank[]
@@ -183,6 +185,7 @@ model Station {
   prices          Price[]
   clients         Client[]
   invoices        Invoice[]
+  creditNotes     CreditNote[]
   maintenanceLogs MaintenanceLog[]
   alerts          Alert[]
   auditLogs       AuditLog[]
@@ -307,13 +310,16 @@ model Shift {
   startedAt    DateTime
   endedAt      DateTime?
   status       ShiftStatus @default(OPEN)
-  incidentNote String?     @db.Text // remarques/incidents
-  version      Int         @default(0) // Verrouillage optimiste
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  incidentNote       String?     @db.Text // remarques/incidents
+  validatedByUserId  String?
+  validatedAt        DateTime?
+  version            Int         @default(0) // Verrouillage optimiste
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
   nozzle       Nozzle        @relation(fields: [nozzleId], references: [id])
   pompiste     User          @relation(fields: [pompisteId], references: [id])
+  validatedBy  User?         @relation("ShiftsValidated", fields: [validatedByUserId], references: [id])
   sales        Sale[]
   cashRegister CashRegister?
 
@@ -466,6 +472,8 @@ model Delivery {
   levelBefore        Decimal  @db.Decimal(12, 2) // jauge avant livraison
   levelAfter         Decimal  @db.Decimal(12, 2) // jauge après livraison
   temperature        Decimal? @db.Decimal(5, 2) // température carburant
+  orderedQuantity    Decimal? @db.Decimal(12, 2) // quantité commandée
+  deliveryVariance   Decimal? @db.Decimal(12, 2) // écart livraison (quantity - orderedQuantity)
   deliveredAt        DateTime
   createdAt          DateTime @default(now())
 
@@ -648,6 +656,7 @@ model InvoicePayment {
 // ===========================================
 model CreditNote {
   id                String   @id @default(uuid())
+  stationId         String
   originalInvoiceId String
   creditNoteNumber  String   @unique
   amountHT          Decimal  @db.Decimal(12, 2)
@@ -657,8 +666,10 @@ model CreditNote {
   issuedAt          DateTime
   createdAt         DateTime @default(now())
 
+  station         Station @relation(fields: [stationId], references: [id])
   originalInvoice Invoice @relation(fields: [originalInvoiceId], references: [id])
 
+  @@index([stationId])
   @@map("credit_notes")
 }
 

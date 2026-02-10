@@ -50,12 +50,19 @@ export class ShiftService {
       throw new BadRequestException('Ce pistolet est désactivé');
     }
 
-    // Utiliser le validator pour vérifier qu'aucun shift n'est ouvert
+    // Utiliser le validator pour vérifier qu'aucun shift n'est ouvert sur ce nozzle
     const openShiftCheck = await this.shiftValidator.validateNoOpenShift(
       dto.nozzleId,
     );
     if (!openShiftCheck.valid) {
       throw new ConflictException(openShiftCheck.message);
+    }
+
+    // Vérifier que ce pompiste n'a pas déjà un shift ouvert (tous nozzles)
+    const pompisteShiftCheck =
+      await this.shiftValidator.validateNoPompisteOpenShift(pompisteId);
+    if (!pompisteShiftCheck.valid) {
+      throw new ConflictException(pompisteShiftCheck.message);
     }
 
     // Vérifier que indexStart >= currentIndex du nozzle
@@ -136,7 +143,13 @@ export class ShiftService {
       }
     }
 
-    // Vérifier le status du shift
+    // Vérifier le status du shift (OPEN pour clôturer, rejeter si VALIDATED)
+    if (shift.status === ShiftStatus.VALIDATED) {
+      throw new BadRequestException(
+        'Ce shift est déjà validé et ne peut pas être modifié',
+      );
+    }
+
     const statusCheck = await this.shiftValidator.validateShiftStatus(
       shiftId,
       ShiftStatus.OPEN,
@@ -144,6 +157,19 @@ export class ShiftService {
     if (!statusCheck.valid) {
       throw new BadRequestException(
         `Ce shift ne peut pas être clôturé (status actuel: ${shift.status})`,
+      );
+    }
+
+    // Vérifier la durée du shift
+    const durationCheck = this.shiftValidator.validateShiftDuration(
+      shift.startedAt,
+    );
+    if (durationCheck.block) {
+      throw new BadRequestException(durationCheck.message);
+    }
+    if (durationCheck.warn) {
+      this.logger.warn(
+        `Shift ${shiftId}: ${durationCheck.message}`,
       );
     }
 
@@ -205,9 +231,25 @@ export class ShiftService {
 
   async validateShift(
     shiftId: string,
-    _gestionnaireId: string,
+    gestionnaireId: string,
   ): Promise<Shift> {
-    // Utiliser le validator pour vérifier le status
+    // Vérifier que le shift existe
+    const shift = await this.prisma.shift.findUnique({
+      where: { id: shiftId },
+    });
+
+    if (!shift) {
+      throw new NotFoundException(`Shift avec l'ID ${shiftId} non trouvé`);
+    }
+
+    // Vérifier l'immutabilité: un shift déjà VALIDATED ne peut pas être re-validé
+    if (shift.status === ShiftStatus.VALIDATED) {
+      throw new BadRequestException(
+        'Ce shift est déjà validé et ne peut pas être modifié',
+      );
+    }
+
+    // Utiliser le validator pour vérifier le status (doit être CLOSED)
     const statusCheck = await this.shiftValidator.validateShiftStatus(
       shiftId,
       ShiftStatus.CLOSED,
@@ -220,6 +262,8 @@ export class ShiftService {
       where: { id: shiftId },
       data: {
         status: ShiftStatus.VALIDATED,
+        validatedByUserId: gestionnaireId,
+        validatedAt: new Date(),
       },
       include: {
         nozzle: {
@@ -234,6 +278,13 @@ export class ShiftService {
             firstName: true,
             lastName: true,
             badgeCode: true,
+          },
+        },
+        validatedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
           },
         },
         sales: true,

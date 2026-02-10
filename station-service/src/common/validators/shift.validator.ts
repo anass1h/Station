@@ -6,6 +6,7 @@ import type {
   ValidationResult,
   IndexContinuityResult,
   OpenShiftResult,
+  ShiftDurationCheckResult,
 } from './types.js';
 
 @Injectable()
@@ -126,5 +127,62 @@ export class ShiftValidator {
     }
 
     return { valid: true };
+  }
+
+  /**
+   * Vérifie qu'un pompiste n'a pas déjà un shift ouvert (tous nozzles confondus)
+   */
+  async validateNoPompisteOpenShift(
+    pompisteId: string,
+  ): Promise<OpenShiftResult> {
+    const openShift = await this.prisma.shift.findFirst({
+      where: {
+        pompisteId,
+        status: ShiftStatus.OPEN,
+      },
+      include: {
+        nozzle: true,
+      },
+    });
+
+    if (openShift) {
+      return {
+        valid: false,
+        message: `Ce pompiste a déjà un shift ouvert sur le pistolet ${openShift.nozzle.reference} (ID: ${openShift.id})`,
+        existingShiftId: openShift.id,
+      };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Vérifie la durée d'un shift et retourne warn/block selon les seuils
+   */
+  validateShiftDuration(startedAt: Date): ShiftDurationCheckResult {
+    const hours =
+      (Date.now() - startedAt.getTime()) / (1000 * 60 * 60);
+
+    if (hours > SHIFT_CONSTANTS.MAX_DURATION_BLOCK_HOURS) {
+      return {
+        valid: false,
+        block: true,
+        warn: true,
+        hours,
+        message: `Le shift dure depuis ${hours.toFixed(1)}h, dépassant la limite de ${SHIFT_CONSTANTS.MAX_DURATION_BLOCK_HOURS}h`,
+      };
+    }
+
+    if (hours > SHIFT_CONSTANTS.MAX_DURATION_WARNING_HOURS) {
+      return {
+        valid: true,
+        block: false,
+        warn: true,
+        hours,
+        message: `Le shift dure depuis ${hours.toFixed(1)}h, dépassant le seuil d'alerte de ${SHIFT_CONSTANTS.MAX_DURATION_WARNING_HOURS}h`,
+      };
+    }
+
+    return { valid: true, block: false, warn: false, hours };
   }
 }
