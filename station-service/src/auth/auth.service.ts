@@ -187,6 +187,7 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<User | null> {
+    email = email.toLowerCase().trim(); // NORMALISATION
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
@@ -203,6 +204,12 @@ export class AuthService {
     if (user.role === UserRole.POMPISTE) {
       await bcrypt.compare(password, this.DUMMY_HASH);
       return null;
+    }
+
+    // Vérifier si le compte est actif (timing attack prevention)
+    if (!user.isActive) {
+      await bcrypt.compare(password, this.DUMMY_HASH);
+      throw new UnauthorizedException('Compte désactivé');
     }
 
     // Vérifier le verrouillage
@@ -252,6 +259,12 @@ export class AuthService {
     if (!user.pinCodeHash) {
       await bcrypt.compare(pinCode, this.DUMMY_HASH);
       return null;
+    }
+
+    // Vérifier si le compte est actif (timing attack prevention)
+    if (!user.isActive) {
+      await bcrypt.compare(pinCode, this.DUMMY_HASH);
+      throw new UnauthorizedException('Compte désactivé');
     }
 
     // Vérifier le verrouillage
@@ -484,6 +497,7 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<AuthResponseDto> {
+    email = email.toLowerCase().trim(); // NORMALISATION
     const user = await this.validateUser(email, password, ipAddress, userAgent);
 
     if (!user) {
@@ -544,6 +558,10 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<AuthResponseDto> {
+    // Normalization de l'email
+    if (dto.email) {
+      dto.email = dto.email.toLowerCase().trim();
+    }
     // 1. Vérifier qu'aucun SUPER_ADMIN n'existe
     const existingAdmin = await this.prisma.user.findFirst({
       where: { role: UserRole.SUPER_ADMIN },
@@ -600,7 +618,9 @@ export class AuthService {
     userAgent?: string,
   ): Promise<AuthResponseDto> {
     // ═══ Contrôle d'autorisation par rôle ═══
-
+      if (dto.email) {
+    dto.email = dto.email.toLowerCase().trim();
+    }
     if (currentUser.role === UserRole.GESTIONNAIRE) {
       // GESTIONNAIRE ne peut créer que des POMPISTES
       if (dto.role !== UserRole.POMPISTE) {
@@ -765,6 +785,7 @@ export class AuthService {
     badgeCode?: string | null,
   ): Promise<void> {
     if (email) {
+      email = email.toLowerCase().trim(); // NORMALISATION
       const existingEmail = await this.prisma.user.findUnique({
         where: { email },
       });
