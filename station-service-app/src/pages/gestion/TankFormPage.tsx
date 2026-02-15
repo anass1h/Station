@@ -5,6 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { zText, LIMITS } from '../../lib/validation';
 import { tankService, CreateTankDto } from '@/services/tankService';
 import { stationService } from '@/services/stationService';
 import { fuelTypeService } from '@/services/fuelTypeService';
@@ -16,7 +17,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 const tankSchema = z.object({
   stationId: z.string().min(1, 'La station est requise'),
   fuelTypeId: z.string().min(1, 'Le type de carburant est requis'),
-  reference: z.string().min(1, 'La reference est requise'),
+  reference: zText(LIMITS.REFERENCE_SHORT, 'La reference est requise'),
   capacity: z.number().min(1, 'La capacite doit etre positive'),
   currentLevel: z.number().min(0, 'Le niveau doit etre positif'),
   alertThreshold: z.number().min(1).max(100, 'Le seuil doit etre entre 1 et 100'),

@@ -7,8 +7,10 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
+import { NoHtml } from '../../common/validators/index.js';
 import { Transform } from 'class-transformer';
 
 export enum AuditAction {
@@ -34,11 +36,14 @@ export class QueryAuditLogDto {
   @ApiPropertyOptional({ description: "Filtrer par type d'entité" })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
+  @NoHtml()
   entityType?: string;
 
   @ApiPropertyOptional({ description: "Filtrer par ID d'entité" })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   entityId?: string;
 
   @ApiPropertyOptional({ enum: AuditAction, description: 'Filtrer par action' })

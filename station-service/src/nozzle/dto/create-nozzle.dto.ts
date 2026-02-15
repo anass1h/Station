@@ -8,6 +8,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { NoHtml } from '../../common/validators/index.js';
 
 export class CreateNozzleDto {
   @ApiProperty({
@@ -38,6 +39,7 @@ export class CreateNozzleDto {
   @IsString()
   @MinLength(1)
   @MaxLength(50)
+  @NoHtml()
   reference!: string;
 
   @ApiProperty({

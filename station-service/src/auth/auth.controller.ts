@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
@@ -58,6 +59,7 @@ export class AuthController {
   // ═══════════════════════════════════════════════════════════════
 
   @Post('login')
+  @HttpCode(200)
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 tentatives par minute
   @ApiOperation({
@@ -84,6 +86,7 @@ export class AuthController {
   }
 
   @Post('login-badge')
+  @HttpCode(200)
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 tentatives par minute
   @ApiOperation({
@@ -105,6 +108,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @HttpCode(200)
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 tentatives par minute
   @ApiOperation({
@@ -175,6 +179,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @HttpCode(200)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Déconnexion',
@@ -201,6 +206,7 @@ export class AuthController {
   }
 
   @Post('logout-all')
+  @HttpCode(200)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Déconnexion de tous les appareils',
@@ -236,6 +242,7 @@ export class AuthController {
   }
 
   @Post('change-password')
+  @HttpCode(200)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Changer le mot de passe',
@@ -260,6 +267,7 @@ export class AuthController {
   }
 
   @Post('change-pin')
+  @HttpCode(200)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Changer le code PIN',
@@ -284,6 +292,7 @@ export class AuthController {
   // ═══════════════════════════════════════════════════════════════
 
   @Post('unlock-account/:userId')
+  @HttpCode(200)
   @Roles(UserRole.SUPER_ADMIN, UserRole.GESTIONNAIRE)
   @ApiBearerAuth()
   @ApiOperation({

@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { NoHtml } from '../../common/validators/index.js';
 
 export class ValidateShiftDto {
   @ApiPropertyOptional({
@@ -8,5 +9,7 @@ export class ValidateShiftDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  @NoHtml()
   validationNote?: string;
 }

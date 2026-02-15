@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { zOptionalText, LIMITS } from '../../lib/validation';
 import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { invoiceService, CreateInvoiceDto } from '@/services/invoiceService';
 import { clientService } from '@/services/clientService';
@@ -16,7 +17,7 @@ import { formatCurrency } from '@/utils/exportExcel';
 
 const lineSchema = z.object({
   fuelTypeId: z.string().min(1, 'Le type de carburant est requis'),
-  description: z.string().optional(),
+  description: zOptionalText(LIMITS.NOTE_SHORT),
   quantity: z.number().positive('Quantite positive'),
   unitPriceHT: z.number().positive('Prix positif'),
 });
@@ -26,7 +27,7 @@ const invoiceSchema = z.object({
   type: z.enum(['INTERNAL', 'B2B', 'B2C_TICKET']),
   periodStart: z.string().optional(),
   periodEnd: z.string().optional(),
-  notes: z.string().optional(),
+  notes: zOptionalText(LIMITS.NOTE_LONG),
   lines: z.array(lineSchema).min(1, 'Au moins une ligne requise'),
 });
 

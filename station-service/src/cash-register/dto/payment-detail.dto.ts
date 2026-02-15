@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator';
+import { NoHtml } from '../../common/validators/index.js';
 
 export class PaymentDetailDto {
   @ApiProperty({
@@ -23,5 +24,7 @@ export class PaymentDetailDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
+  @NoHtml()
   reference?: string;
 }

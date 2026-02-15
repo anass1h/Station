@@ -1,6 +1,7 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { zOptionalText, LIMITS } from '../../lib/validation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { debtService, PompisteDebt, AddPaymentDto } from '@/services/debtService';
@@ -17,7 +18,7 @@ interface DebtPaymentModalProps {
 const paymentSchema = z.object({
   amount: z.number().positive('Le montant doit etre positif'),
   paymentMethod: z.enum(['CASH', 'SALARY_DEDUCTION', 'OTHER']),
-  note: z.string().optional(),
+  note: zOptionalText(LIMITS.NOTE_SHORT),
   paymentDate: z.string().min(1, 'La date est requise'),
 });
 

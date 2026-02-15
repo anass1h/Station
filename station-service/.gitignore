@@ -6,7 +6,11 @@ dist/
 dist-electron/
 release/
 
-# Environment variables
+# Environment variables - NEVER commit secrets
+.env
+.env.development
+.env.test
+.env.production
 .env.local
 .env.*.local
 

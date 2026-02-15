@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { zText, LIMITS } from '../../lib/validation';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { deliveryService, CreateDeliveryDto } from '@/services/deliveryService';
 import { supplierService } from '@/services/supplierService';
@@ -17,7 +18,7 @@ import { formatNumber, formatCurrency } from '@/utils/exportExcel';
 const deliverySchema = z.object({
   tankId: z.string().min(1, 'La cuve est requise'),
   supplierId: z.string().min(1, 'Le fournisseur est requis'),
-  deliveryNumber: z.string().min(1, 'Le numero de BL est requis'),
+  deliveryNumber: zText(LIMITS.REFERENCE_SHORT, 'Le numero de BL est requis'),
   quantity: z.number().positive('La quantite doit etre positive'),
   purchasePrice: z.number().positive('Le prix doit etre positif'),
   levelBefore: z.number().min(0, 'Le niveau doit etre positif'),

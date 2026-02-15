@@ -10,13 +10,14 @@ import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { FormField } from '@/components/ui/FormField';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { zText, zOptionalText, LIMITS } from '../../lib/validation';
 
 const pompisteSchema = z.object({
-  badgeCode: z.string().min(1, 'Le code badge est requis'),
+  badgeCode: zText(LIMITS.BADGE_CODE, 'Le code badge est requis'),
   pin: z.string().length(6, 'Le PIN doit contenir 6 chiffres').optional().or(z.literal('')),
-  firstName: z.string().min(1, 'Le prenom est requis'),
-  lastName: z.string().min(1, 'Le nom est requis'),
-  phone: z.string().optional(),
+  firstName: zText(LIMITS.NAME_STANDARD, 'Le prenom est requis'),
+  lastName: zText(LIMITS.NAME_STANDARD, 'Le nom est requis'),
+  phone: zOptionalText(LIMITS.PHONE),
   email: z.string().email('Email invalide').optional().or(z.literal('')),
 });
 

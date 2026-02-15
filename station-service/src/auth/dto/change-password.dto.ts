@@ -1,10 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MinLength, Matches } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength, MinLength, Matches } from 'class-validator';
+import { VALIDATION_LIMITS } from '../../common/constants/index.js';
 
 export class ChangePasswordDto {
   @ApiProperty({ description: 'Mot de passe actuel' })
   @IsNotEmpty({ message: 'Le mot de passe actuel est obligatoire' })
   @IsString()
+  @MaxLength(VALIDATION_LIMITS.PASSWORD_MAX)
   currentPassword!: string;
 
   @ApiProperty({
@@ -13,6 +15,7 @@ export class ChangePasswordDto {
   @IsNotEmpty({ message: 'Le nouveau mot de passe est obligatoire' })
   @IsString()
   @MinLength(8, { message: 'Le mot de passe doit contenir au moins 8 caractères' })
+  @MaxLength(VALIDATION_LIMITS.PASSWORD_MAX)
   @Matches(
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/,
     {

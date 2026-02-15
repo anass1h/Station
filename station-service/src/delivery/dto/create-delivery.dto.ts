@@ -9,6 +9,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { NoHtml } from '../../common/validators/index.js';
 
 export class CreateDeliveryDto {
   @ApiProperty({
@@ -31,6 +32,7 @@ export class CreateDeliveryDto {
   })
   @IsString()
   @MaxLength(50)
+  @NoHtml()
   deliveryNoteNumber!: string;
 
   @ApiProperty({

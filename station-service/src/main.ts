@@ -99,7 +99,7 @@ async function bootstrap() {
       'X-Request-Id',
     ],
     credentials: true,
-    maxAge: 86400, // 24 hours
+    maxAge: 900, // 24 hours
   });
 
   // Compression middleware
@@ -112,8 +112,9 @@ async function bootstrap() {
       forbidNonWhitelisted: true, // Throw error for unknown properties
       transform: true, // Auto-transform payloads to DTO types
       transformOptions: {
-        enableImplicitConversion: true, // Convert primitive types automatically
+        enableImplicitConversion: false, // Explicit types only — no silent coercion
       },
+      forbidUnknownValues: true, // Reject unknown objects
       disableErrorMessages: isProduction,
     }),
   );

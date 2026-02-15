@@ -8,8 +8,11 @@ import {
   IsString,
   IsUUID,
   Length,
+  MaxLength,
   MinLength,
 } from 'class-validator';
+import { NoHtml } from '../../common/validators/index.js';
+import { VALIDATION_LIMITS } from '../../common/constants/index.js';
 
 export class CreateUserDto {
   @ApiPropertyOptional({ description: 'ID de la station' })
@@ -35,12 +38,16 @@ export class CreateUserDto {
 
   @ApiProperty({ description: 'Prenom' })
   @IsNotEmpty()
+  @NoHtml()
   @IsString()
+  @MaxLength(VALIDATION_LIMITS.NAME_STANDARD)
   firstName!: string;
 
   @ApiProperty({ description: 'Nom' })
   @IsNotEmpty()
+  @NoHtml()
   @IsString()
+  @MaxLength(VALIDATION_LIMITS.NAME_STANDARD)
   lastName!: string;
 
   @ApiPropertyOptional({ description: 'Email' })
@@ -50,12 +57,15 @@ export class CreateUserDto {
 
   @ApiPropertyOptional({ description: 'Telephone' })
   @IsOptional()
+  @NoHtml()
   @IsString()
+  @MaxLength(VALIDATION_LIMITS.PHONE)
   phone?: string;
 
   @ApiPropertyOptional({ description: 'Mot de passe (min 8 caracteres)' })
   @IsOptional()
   @IsString()
   @MinLength(8)
+  @MaxLength(VALIDATION_LIMITS.PASSWORD_MAX)
   password?: string;
 }

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsString, MaxLength, MinLength } from 'class-validator';
+import { NoHtml } from '../../common/validators/index.js';
 
 export class CreatePaymentMethodDto {
   @ApiProperty({
@@ -18,6 +19,8 @@ export class CreatePaymentMethodDto {
     example: 'Espèces',
   })
   @IsString()
+  @MaxLength(50)
+  @NoHtml()
   name!: string;
 
   @ApiProperty({

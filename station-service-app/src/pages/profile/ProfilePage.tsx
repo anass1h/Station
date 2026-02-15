@@ -14,10 +14,11 @@ import { FormField } from '@/components/ui/FormField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PinPad } from '@/components/auth/PinPad';
 import toast from 'react-hot-toast';
+import { zPassword } from '../../lib/validation';
 
 const passwordSchema = z.object({
-  currentPassword: z.string().min(1, 'Mot de passe actuel requis'),
-  newPassword: z.string().min(8, 'Minimum 8 caracteres'),
+  currentPassword: zPassword(1),
+  newPassword: zPassword(8),
   confirmPassword: z.string(),
 }).refine(data => data.newPassword === data.confirmPassword, {
   message: 'Les mots de passe ne correspondent pas',

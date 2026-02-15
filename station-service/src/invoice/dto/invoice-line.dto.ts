@@ -5,7 +5,9 @@ import {
   IsPositive,
   IsString,
   IsUUID,
+  MaxLength,
 } from 'class-validator';
+import { NoHtml } from '../../common/validators/index.js';
 
 export class InvoiceLineDto {
   @ApiProperty({
@@ -21,6 +23,8 @@ export class InvoiceLineDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  @NoHtml()
   description?: string;
 
   @ApiProperty({

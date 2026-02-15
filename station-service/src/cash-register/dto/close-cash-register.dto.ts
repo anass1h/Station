@@ -5,8 +5,10 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
+import { NoHtml } from '../../common/validators/index.js';
 import { Type } from 'class-transformer';
 import { PaymentDetailDto } from './payment-detail.dto';
 
@@ -33,6 +35,8 @@ export class CloseCashRegisterDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  @NoHtml()
   varianceNote?: string;
 
   @ApiPropertyOptional({
