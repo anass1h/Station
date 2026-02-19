@@ -8,7 +8,7 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { NoHtml } from '../../common/validators/index.js';
+import { SafeText } from '../../common/validators/index.js';
 import { Type } from 'class-transformer';
 import { PaymentDetailDto } from './payment-detail.dto';
 
@@ -36,7 +36,7 @@ export class CloseCashRegisterDto {
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  @NoHtml()
+  @SafeText()
   varianceNote?: string;
 
   @ApiPropertyOptional({

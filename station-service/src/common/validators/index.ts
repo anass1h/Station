@@ -5,3 +5,4 @@ export * from './stock.validator.js';
 export * from './pin.validator.js';
 export * from './client-b2b.validator.js';
 export * from './no-html.validator.js';
+export * from './safe-text.validator.js';

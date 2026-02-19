@@ -7,7 +7,7 @@ import {
   IsIn,
   MaxLength,
 } from 'class-validator';
-import { NoHtml } from '../../common/validators/index.js';
+import { SafeText } from '../../common/validators/index.js';
 
 export class AddDebtPaymentDto {
   @IsNumber()
@@ -20,7 +20,7 @@ export class AddDebtPaymentDto {
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  @NoHtml()
+  @SafeText()
   note?: string;
 
   @IsDateString()

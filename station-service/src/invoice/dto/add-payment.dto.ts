@@ -8,7 +8,7 @@ import {
   IsUUID,
   MaxLength,
 } from 'class-validator';
-import { NoHtml } from '../../common/validators/index.js';
+import { NoHtml, SafeText } from '../../common/validators/index.js';
 
 export class AddPaymentDto {
   @ApiProperty({
@@ -50,6 +50,6 @@ export class AddPaymentDto {
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  @NoHtml()
+  @SafeText()
   notes?: string;
 }

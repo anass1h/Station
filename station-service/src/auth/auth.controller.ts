@@ -243,6 +243,7 @@ export class AuthController {
 
   @Post('change-password')
   @HttpCode(200)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Changer le mot de passe',
@@ -268,6 +269,7 @@ export class AuthController {
 
   @Post('change-pin')
   @HttpCode(200)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Changer le code PIN',
@@ -293,6 +295,7 @@ export class AuthController {
 
   @Post('unlock-account/:userId')
   @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Roles(UserRole.SUPER_ADMIN, UserRole.GESTIONNAIRE)
   @ApiBearerAuth()
   @ApiOperation({
