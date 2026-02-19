@@ -1,5 +1,7 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, Matches } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { NoHtml } from '../../common/validators/index.js';
+import { VALIDATION_LIMITS } from '../../common/constants/index.js';
 
 /**
  * DTO pour l'initialisation du premier administrateur du système.
@@ -27,17 +29,23 @@ export class SetupAdminDto {
   password!: string;
 
   @ApiProperty({ example: 'Super', description: 'Prénom' })
+  @NoHtml()
   @IsString()
   @MinLength(2, { message: 'Le prénom doit contenir au moins 2 caractères' })
+  @MaxLength(VALIDATION_LIMITS.NAME_STANDARD)
   firstName!: string;
 
   @ApiProperty({ example: 'Admin', description: 'Nom' })
+  @NoHtml()
   @IsString()
   @MinLength(2, { message: 'Le nom doit contenir au moins 2 caractères' })
+  @MaxLength(VALIDATION_LIMITS.NAME_STANDARD)
   lastName!: string;
 
   @ApiProperty({ required: false, description: 'Numéro de téléphone' })
   @IsOptional()
+  @NoHtml()
   @IsString()
+  @MaxLength(VALIDATION_LIMITS.PHONE)
   phone?: string;
 }

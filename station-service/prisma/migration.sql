@@ -546,6 +546,9 @@ CREATE TABLE "debt_payments" (
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
+-- Case-insensitive email index for login normalization
+CREATE UNIQUE INDEX "users_email_ci_idx" ON "users" (LOWER("email"));
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_badgeCode_key" ON "users"("badgeCode");
 

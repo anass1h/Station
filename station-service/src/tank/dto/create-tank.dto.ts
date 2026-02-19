@@ -8,6 +8,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { NoHtml } from '../../common/validators/index.js';
 
 export class CreateTankDto {
   @ApiProperty({
@@ -31,6 +32,7 @@ export class CreateTankDto {
   @IsString()
   @MinLength(1)
   @MaxLength(50)
+  @NoHtml()
   reference!: string;
 
   @ApiProperty({

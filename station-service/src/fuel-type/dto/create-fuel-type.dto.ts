@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, MinLength, MaxLength } from 'class-validator';
+import { NoHtml } from '../../common/validators/index.js';
 
 export class CreateFuelTypeDto {
   @ApiProperty({
@@ -20,5 +21,7 @@ export class CreateFuelTypeDto {
   })
   @IsString()
   @MinLength(2)
+  @MaxLength(50)
+  @NoHtml()
   name!: string;
 }

@@ -42,13 +42,26 @@ async function bootstrap() {
     helmet({
       contentSecurityPolicy: {
         directives: {
-          defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", 'data:', 'https:'],
-          scriptSrc: ["'self'"],
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        fontSrc: ["'self'", 'https:', 'data:'],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        upgradeInsecureRequests: [],
         },
+  },
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
       },
-      crossOriginEmbedderPolicy: false, // Disable for API compatibility
     }),
   );
 
@@ -99,7 +112,7 @@ async function bootstrap() {
       'X-Request-Id',
     ],
     credentials: true,
-    maxAge: 86400, // 24 hours
+    maxAge: 900, // 24 hours
   });
 
   // Compression middleware
@@ -112,8 +125,9 @@ async function bootstrap() {
       forbidNonWhitelisted: true, // Throw error for unknown properties
       transform: true, // Auto-transform payloads to DTO types
       transformOptions: {
-        enableImplicitConversion: true, // Convert primitive types automatically
+        enableImplicitConversion: false, // Explicit types only — no silent coercion
       },
+      forbidUnknownValues: true, // Reject unknown objects
       disableErrorMessages: isProduction,
     }),
   );

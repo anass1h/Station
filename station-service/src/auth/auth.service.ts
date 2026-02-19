@@ -27,14 +27,14 @@ import type { AuthenticatedUser } from './strategies/index.js';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly BCRYPT_ROUNDS = 10;
+  private readonly BCRYPT_ROUNDS = 12;
   private readonly ACCESS_TOKEN_EXPIRES_IN: number; // seconds
   private readonly REFRESH_TOKEN_EXPIRES_DAYS: number;
 
   // Hash factice pour prévenir les timing attacks
   // Même nombre de rounds que les vrais hash pour un temps de comparaison identique
   private readonly DUMMY_HASH =
-    '$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012';
+    '$2b$12$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012';
 
   constructor(
     private readonly prisma: PrismaService,

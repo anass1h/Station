@@ -8,6 +8,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { MOROCCAN_REGEX, FORMAT_REGEX } from '../../common/constants/index.js';
+import { NoHtml } from '../../common/validators/index.js';
 
 export class CreateSupplierDto {
   @ApiProperty({
@@ -17,6 +18,7 @@ export class CreateSupplierDto {
   @IsString()
   @MinLength(2)
   @MaxLength(100)
+  @NoHtml()
   name!: string;
 
   @ApiPropertyOptional({
@@ -26,6 +28,7 @@ export class CreateSupplierDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @NoHtml()
   contactName?: string;
 
   @ApiPropertyOptional({
@@ -52,6 +55,7 @@ export class CreateSupplierDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
+  @NoHtml()
   address?: string;
 
   @ApiPropertyOptional({

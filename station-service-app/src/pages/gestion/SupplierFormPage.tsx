@@ -10,13 +10,14 @@ import { stationService, Station } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
 import { FormField } from '@/components/ui/FormField';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { zText, zOptionalText, LIMITS } from '../../lib/validation';
 
 const supplierSchema = z.object({
-  name: z.string().min(1, 'Le nom est requis'),
-  contactName: z.string().optional(),
-  phone: z.string().optional(),
+  name: zText(LIMITS.NAME_STANDARD, 'Le nom est requis'),
+  contactName: zOptionalText(LIMITS.NAME_STANDARD),
+  phone: zOptionalText(LIMITS.PHONE),
   email: z.string().email('Email invalide').optional().or(z.literal('')),
-  address: z.string().optional(),
+  address: zOptionalText(LIMITS.ADDRESS),
 });
 
 type SupplierFormData = z.infer<typeof supplierSchema>;

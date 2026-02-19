@@ -5,6 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { zText, LIMITS } from '../../lib/validation';
 import { dispenserService, CreateDispenserDto } from '@/services/dispenserService';
 import { stationService } from '@/services/stationService';
 import { useAuthStore } from '@/stores/authStore';
@@ -14,7 +15,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 const dispenserSchema = z.object({
   stationId: z.string().min(1, 'La station est requise'),
-  reference: z.string().min(1, 'La reference est requise'),
+  reference: zText(LIMITS.REFERENCE_SHORT, 'La reference est requise'),
 });
 
 type DispenserFormData = z.infer<typeof dispenserSchema>;

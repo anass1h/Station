@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { LIMITS } from '../../lib/validation';
 import { ArrowLeftIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { stockService, CreateAdjustmentDto } from '@/services/stockService';
 import { tankService } from '@/services/tankService';
@@ -16,7 +17,7 @@ const adjustmentSchema = z.object({
   tankId: z.string().min(1, 'La cuve est requise'),
   type: z.enum(['ADJUSTMENT', 'CALIBRATION', 'LOSS']),
   quantity: z.number().refine((v) => v !== 0, 'La quantite ne peut pas etre nulle'),
-  reason: z.string().min(10, 'La raison doit contenir au moins 10 caracteres'),
+  reason: z.string().min(10, 'La raison doit contenir au moins 10 caracteres').max(LIMITS.NOTE_SHORT).regex(/^[^<>]*$/, 'Les balises HTML ne sont pas autorisées').transform(v => v.trim()),
 });
 
 type AdjustmentFormData = z.infer<typeof adjustmentSchema>;

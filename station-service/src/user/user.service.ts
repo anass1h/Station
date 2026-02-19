@@ -106,13 +106,13 @@ export class UserService {
     // Hash password if provided
     let passwordHash: string | undefined;
     if (dto.password) {
-      passwordHash = await bcrypt.hash(dto.password, 10);
+      passwordHash = await bcrypt.hash(dto.password, 12);
     }
 
     // Hash PIN if provided
     let pinCodeHash: string | undefined;
     if (dto.pin) {
-      pinCodeHash = await bcrypt.hash(dto.pin, 10);
+      pinCodeHash = await bcrypt.hash(dto.pin, 12);
     }
 
     return this.prisma.user.create({
@@ -175,7 +175,7 @@ export class UserService {
     // Hash new password if provided
     let passwordHash: string | undefined;
     if (dto.password) {
-      passwordHash = await bcrypt.hash(dto.password, 10);
+      passwordHash = await bcrypt.hash(dto.password, 12);
     }
 
     return this.prisma.user.update({
@@ -218,7 +218,7 @@ export class UserService {
   async resetPin(id: string, pin: string) {
     await this.findOne(id); // Check if user exists
 
-    const pinCodeHash = await bcrypt.hash(pin, 10);
+    const pinCodeHash = await bcrypt.hash(pin, 12);
 
     await this.prisma.user.update({
       where: { id },

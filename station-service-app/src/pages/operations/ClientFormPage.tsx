@@ -11,17 +11,18 @@ import { useAuthStore } from '@/stores/authStore';
 import { FormField } from '@/components/ui/FormField';
 import { SelectField } from '@/components/ui/SelectField';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { zText, zOptionalText, LIMITS } from '../../lib/validation';
 
 const clientSchema = z.object({
   type: z.enum(['B2B', 'B2C_REGISTERED']),
-  companyName: z.string().optional(),
-  contactName: z.string().min(1, 'Le nom du contact est requis'),
-  phone: z.string().optional(),
+  companyName: zOptionalText(LIMITS.NAME_LONG),
+  contactName: zText(LIMITS.NAME_STANDARD, 'Le nom du contact est requis'),
+  phone: zOptionalText(LIMITS.PHONE),
   email: z.string().email('Email invalide').optional().or(z.literal('')),
-  address: z.string().optional(),
-  ice: z.string().optional(),
-  iff: z.string().optional(),
-  rc: z.string().optional(),
+  address: zOptionalText(LIMITS.ADDRESS),
+  ice: zOptionalText(LIMITS.REFERENCE_SHORT),
+  iff: zOptionalText(LIMITS.REFERENCE_SHORT),
+  rc: zOptionalText(LIMITS.REFERENCE_SHORT),
   creditLimit: z.number().min(0, 'Le plafond doit etre positif ou nul'),
   paymentTermDays: z.number().min(0, 'Le delai doit etre positif ou nul'),
 }).refine((data) => {

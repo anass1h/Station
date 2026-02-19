@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { zOptionalText, LIMITS } from '../../lib/validation';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { debtService, CreateDebtDto, DebtReason } from '@/services/debtService';
 import { userService } from '@/services/userService';
@@ -14,7 +15,7 @@ const debtSchema = z.object({
   pompisteId: z.string().min(1, 'Le pompiste est requis'),
   reason: z.enum(['CASH_VARIANCE', 'SALARY_ADVANCE', 'DAMAGE', 'FUEL_LOSS', 'OTHER']),
   initialAmount: z.number().positive('Le montant doit etre positif'),
-  description: z.string().optional(),
+  description: zOptionalText(LIMITS.NOTE_SHORT),
 });
 
 type DebtFormData = z.infer<typeof debtSchema>;

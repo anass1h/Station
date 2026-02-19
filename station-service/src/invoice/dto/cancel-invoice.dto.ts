@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MinLength } from 'class-validator';
+import { IsString, MaxLength, MinLength } from 'class-validator';
+import { SafeText } from '../../common/validators/index.js';
 
 export class CancelInvoiceDto {
   @ApiProperty({
@@ -8,5 +9,7 @@ export class CancelInvoiceDto {
   })
   @IsString()
   @MinLength(10)
+  @MaxLength(500)
+  @SafeText()
   reason!: string;
 }

@@ -6,11 +6,14 @@ import {
   IsUUID,
   Length,
   Matches,
+  MaxLength,
   MinLength,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { IsNotTrivialPin } from '../../common/validators/pin.validator.js';
+import { NoHtml } from '../../common/validators/index.js';
+import { VALIDATION_LIMITS } from '../../common/constants/index.js';
 
 export class RegisterDto {
   @ApiProperty({
@@ -60,18 +63,24 @@ export class RegisterDto {
   pinCode?: string;
 
   @ApiProperty({ description: 'Prénom' })
+  @NoHtml()
   @IsString()
   @MinLength(2, { message: 'Le prénom doit contenir au moins 2 caractères' })
+  @MaxLength(VALIDATION_LIMITS.NAME_STANDARD)
   firstName!: string;
 
   @ApiProperty({ description: 'Nom' })
+  @NoHtml()
   @IsString()
   @MinLength(2, { message: 'Le nom doit contenir au moins 2 caractères' })
+  @MaxLength(VALIDATION_LIMITS.NAME_STANDARD)
   lastName!: string;
 
   @ApiProperty({ required: false, description: 'Numéro de téléphone' })
   @IsOptional()
+  @NoHtml()
   @IsString()
+  @MaxLength(VALIDATION_LIMITS.PHONE)
   phone?: string;
 
   @ApiProperty({ required: false, description: 'UUID de la station' })

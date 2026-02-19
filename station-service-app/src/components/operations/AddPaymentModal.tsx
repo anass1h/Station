@@ -8,6 +8,7 @@ import { paymentMethodService } from '@/services/paymentMethodService';
 import { FormField } from '@/components/ui/FormField';
 import { SelectField } from '@/components/ui/SelectField';
 import { formatCurrency } from '@/utils/exportExcel';
+import { zOptionalText, LIMITS } from '../../lib/validation';
 
 interface AddPaymentModalProps {
   invoice: Invoice;
@@ -18,9 +19,9 @@ interface AddPaymentModalProps {
 const paymentSchema = z.object({
   amount: z.number().positive('Le montant doit etre positif'),
   paymentMethodId: z.string().min(1, 'Le moyen de paiement est requis'),
-  reference: z.string().optional(),
+  reference: zOptionalText(LIMITS.REFERENCE),
   paymentDate: z.string().min(1, 'La date est requise'),
-  notes: z.string().optional(),
+  notes: zOptionalText(LIMITS.NOTE_SHORT),
 });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;

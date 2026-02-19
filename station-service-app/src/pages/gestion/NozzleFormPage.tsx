@@ -5,6 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { zText, LIMITS } from '../../lib/validation';
 import { nozzleService } from '@/services/nozzleService';
 import { dispenserService } from '@/services/dispenserService';
 import { tankService } from '@/services/tankService';
@@ -17,7 +18,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 const nozzleSchema = z.object({
   dispenserId: z.string().min(1, 'Le distributeur est requis'),
   tankId: z.string().min(1, 'La cuve est requise'),
-  reference: z.string().min(1, 'La reference est requise'),
+  reference: zText(LIMITS.REFERENCE_SHORT, 'La reference est requise'),
   position: z.number().min(1, 'La position doit etre positive'),
   currentIndex: z.number().min(0, "L'index doit etre positif ou nul"),
 });

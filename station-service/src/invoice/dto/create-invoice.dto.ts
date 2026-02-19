@@ -13,6 +13,7 @@ import {
 import { Type } from 'class-transformer';
 import { InvoiceType } from '@prisma/client';
 import { InvoiceLineDto } from './invoice-line.dto';
+import { SafeText } from '../../common/validators/index.js';
 
 export class CreateInvoiceDto {
   @ApiProperty({
@@ -71,5 +72,6 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   @MaxLength(2000)
+  @SafeText()
   notes?: string;
 }

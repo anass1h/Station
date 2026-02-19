@@ -8,17 +8,18 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { stationService, CreateStationDto } from '@/services/stationService';
 import { FormField } from '@/components/ui/FormField';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { zText, zOptionalText, LIMITS } from '../../lib/validation';
 
 const stationSchema = z.object({
-  name: z.string().min(1, 'Le nom est requis'),
-  address: z.string().min(1, "L'adresse est requise"),
-  city: z.string().min(1, 'La ville est requise'),
-  phone: z.string().optional(),
+  name: zText(LIMITS.NAME_STANDARD, 'Le nom est requis'),
+  address: zText(LIMITS.ADDRESS, "L'adresse est requise"),
+  city: zText(LIMITS.NAME_STANDARD, 'La ville est requise'),
+  phone: zOptionalText(LIMITS.PHONE),
   email: z.string().email('Email invalide').optional().or(z.literal('')),
-  ice: z.string().optional(),
-  iff: z.string().optional(),
-  rc: z.string().optional(),
-  patente: z.string().optional(),
+  ice: zOptionalText(LIMITS.REFERENCE_SHORT),
+  iff: zOptionalText(LIMITS.REFERENCE_SHORT),
+  rc: zOptionalText(LIMITS.REFERENCE_SHORT),
+  patente: zOptionalText(LIMITS.REFERENCE_SHORT),
 });
 
 type StationFormData = z.infer<typeof stationSchema>;

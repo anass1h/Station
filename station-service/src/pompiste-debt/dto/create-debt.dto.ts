@@ -5,7 +5,10 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsIn,
+  MaxLength,
 } from 'class-validator';
+import { SafeText } from '../../common/validators/index.js';
 import { DebtReason } from '@prisma/client';
 
 export class CreateDebtDto {
@@ -24,13 +27,16 @@ export class CreateDebtDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  @SafeText()
   description?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   relatedEntityId?: string;
 
   @IsOptional()
-  @IsString()
+  @IsIn(['Shift', 'CashRegister', 'Sale'])
   relatedEntityType?: string;
 }

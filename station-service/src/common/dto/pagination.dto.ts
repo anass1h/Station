@@ -1,4 +1,4 @@
-import { IsOptional, IsInt, Min, Max, IsString, IsIn } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PAGINATION_CONSTANTS } from '../constants/index.js';
@@ -30,7 +30,7 @@ export class PaginationDto {
 
   @ApiPropertyOptional({ description: 'Champ de tri', default: 'createdAt' })
   @IsOptional()
-  @IsString()
+  @IsIn(['createdAt', 'updatedAt', 'name', 'id', 'amount', 'status', 'email', 'firstName', 'lastName', 'code', 'reference'])
   sortBy?: string = 'createdAt';
 
   @ApiPropertyOptional({

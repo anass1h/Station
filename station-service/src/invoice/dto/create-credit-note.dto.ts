@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsPositive, IsString, MinLength } from 'class-validator';
+import { IsNumber, IsOptional, IsPositive, IsString, MaxLength, MinLength } from 'class-validator';
+import { SafeText } from '../../common/validators/index.js';
 
 export class CreateCreditNoteDto {
   @ApiProperty({
@@ -8,6 +9,8 @@ export class CreateCreditNoteDto {
   })
   @IsString()
   @MinLength(10)
+  @MaxLength(500)
+  @SafeText()
   reason!: string;
 
   @ApiPropertyOptional({

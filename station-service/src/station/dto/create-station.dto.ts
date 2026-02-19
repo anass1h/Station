@@ -8,6 +8,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { MOROCCAN_REGEX, FORMAT_REGEX } from '../../common/constants/index.js';
+import { NoHtml } from '../../common/validators/index.js';
 
 export class CreateStationDto {
   @ApiProperty({
@@ -17,6 +18,7 @@ export class CreateStationDto {
   @IsString()
   @MinLength(2)
   @MaxLength(100)
+  @NoHtml()
   name!: string;
 
   @ApiProperty({
@@ -26,12 +28,14 @@ export class CreateStationDto {
   @IsString()
   @MinLength(5)
   @MaxLength(255)
+  @NoHtml()
   address!: string;
 
   @ApiProperty({ description: 'Ville', example: 'Casablanca' })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
+  @NoHtml()
   city!: string;
 
   @ApiPropertyOptional({

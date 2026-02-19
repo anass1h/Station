@@ -12,7 +12,7 @@ import {
 } from 'class-validator';
 import { ClientType } from '@prisma/client';
 import { MOROCCAN_REGEX, FORMAT_REGEX } from '../../common/constants/index.js';
-import { RequireForB2B } from '../../common/validators/index.js';
+import { RequireForB2B, NoHtml } from '../../common/validators/index.js';
 
 export class CreateClientDto {
   @ApiProperty({
@@ -37,6 +37,7 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   @MaxLength(150)
+  @NoHtml()
   @RequireForB2B()
   companyName?: string;
 
@@ -47,6 +48,7 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @NoHtml()
   contactName?: string;
 
   @ApiPropertyOptional({
@@ -84,6 +86,7 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
+  @NoHtml()
   address?: string;
 
   @ApiPropertyOptional({
